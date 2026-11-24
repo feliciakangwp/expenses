@@ -1,0 +1,279 @@
+import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { ChevronDown, ChevronUp, Check, CreditCard, Calendar, Tag, MessageSquare, Store } from 'lucide-react'
+import type { Category, PaymentMethod, Subcategory } from '@/types'
+import { NumericKeypad } from './NumericKeypad'
+import { CategoryPicker } from './CategoryPicker'
+import { Button } from '@/components/ui/Button'
+import { cn } from '@/lib/utils'
+import { format } from 'date-fns'
+import { parseCentsFromString } from '@/lib/utils'
+
+interface QuickExpenseEntryProps {
+  categories: Category[]
+  subcategories: Record<string, Subcategory[]>
+  paymentMethods: PaymentMethod[]
+  defaultPaymentMethodId?: string | null
+  recentCategoryIds?: string[]
+  onSave: (data: {
+    category: Category
+    subcategoryId: string | null
+    amount: number
+    paymentMethodId: string | null
+    description: string
+    merchant: string
+    transactionDate: string
+    notes: string
+    isNeeds: boolean | null
+  }) => Promise<void>
+}
+
+export function QuickExpenseEntry({
+  categories,
+  subcategories,
+  paymentMethods,
+  defaultPaymentMethodId,
+  recentCategoryIds = [],
+  onSave,
+}: QuickExpenseEntryProps) {
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null)
+  const [amount, setAmount] = useState('0')
+  const [paymentMethodId, setPaymentMethodId] = useState<string | null>(defaultPaymentMethodId ?? null)
+  const [subcategoryId, setSubcategoryId] = useState<string | null>(null)
+  const [description, setDescription] = useState('')
+  const [merchant, setMerchant] = useState('')
+  const [transactionDate, setTransactionDate] = useState(format(new Date(), "yyyy-MM-dd"))
+  const [notes, setNotes] = useState('')
+  const [showMore, setShowMore] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  const cents = parseCentsFromString(amount)
+  const canSave = selectedCategory !== null && cents > 0
+
+  const handleSave = async () => {
+    if (!canSave || !selectedCategory) return
+    setSaving(true)
+    try {
+      await onSave({
+        category: selectedCategory,
+        subcategoryId,
+        amount: cents,
+        paymentMethodId,
+        description,
+        merchant,
+        transactionDate: `${transactionDate}T${format(new Date(), 'HH:mm:ss')}`,
+        notes,
+        isNeeds: selectedCategory.is_needs,
+      })
+      setSaved(true)
+      setTimeout(() => {
+        setSaved(false)
+        setAmount('0')
+        setDescription('')
+        setMerchant('')
+        setNotes('')
+        setSubcategoryId(null)
+        setTransactionDate(format(new Date(), "yyyy-MM-dd"))
+        setShowMore(false)
+      }, 1200)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const catSubcats = selectedCategory ? (subcategories[selectedCategory.id] ?? []) : []
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Category Picker */}
+      <div>
+        <p className="px-5 mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+          Category
+        </p>
+        <CategoryPicker
+          categories={categories}
+          selected={selectedCategory}
+          onSelect={(cat) => {
+            setSelectedCategory(cat)
+            setSubcategoryId(null)
+          }}
+          recentIds={recentCategoryIds}
+        />
+      </div>
+
+      {/* Amount Display */}
+      <div className="px-5 text-center">
+        <div
+          className={cn(
+            'text-5xl font-bold tracking-tight transition-colors',
+            cents === 0
+              ? 'text-gray-300 dark:text-gray-700'
+              : 'text-gray-900 dark:text-gray-50'
+          )}
+        >
+          <span className="text-2xl font-semibold text-gray-400 mr-1">$</span>
+          {amount === '0' ? '0.00' : amount}
+        </div>
+      </div>
+
+      {/* Keypad */}
+      <NumericKeypad value={amount} onChange={setAmount} />
+
+      {/* More Details Toggle */}
+      <div className="px-5">
+        <button
+          onClick={() => setShowMore(!showMore)}
+          className="flex w-full items-center justify-between py-2 text-sm font-medium text-gray-500 dark:text-gray-400"
+        >
+          <span>More details</span>
+          {showMore ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
+
+        <AnimatePresence>
+          {showMore && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <div className="flex flex-col gap-3 pb-2">
+                {/* Subcategory */}
+                {catSubcats.length > 0 && (
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+                      Subcategory
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {catSubcats.map((sc) => (
+                        <button
+                          key={sc.id}
+                          onClick={() => setSubcategoryId(sc.id === subcategoryId ? null : sc.id)}
+                          className={cn(
+                            'rounded-xl px-3 py-1.5 text-sm font-medium transition-all',
+                            subcategoryId === sc.id
+                              ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300'
+                              : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+                          )}
+                        >
+                          {sc.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Description */}
+                <div className="relative">
+                  <MessageSquare size={15} className="absolute left-3 top-3 text-gray-400" />
+                  <input
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Description"
+                    className="w-full rounded-xl bg-gray-50 dark:bg-gray-800 pl-9 pr-3 py-2.5 text-sm text-gray-900 dark:text-gray-50 placeholder-gray-400 outline-none focus:ring-2 focus:ring-primary-500/50"
+                  />
+                </div>
+
+                {/* Merchant */}
+                <div className="relative">
+                  <Store size={15} className="absolute left-3 top-3 text-gray-400" />
+                  <input
+                    value={merchant}
+                    onChange={(e) => setMerchant(e.target.value)}
+                    placeholder="Merchant"
+                    className="w-full rounded-xl bg-gray-50 dark:bg-gray-800 pl-9 pr-3 py-2.5 text-sm text-gray-900 dark:text-gray-50 placeholder-gray-400 outline-none focus:ring-2 focus:ring-primary-500/50"
+                  />
+                </div>
+
+                {/* Payment Method */}
+                <div>
+                  <label className="mb-1 flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+                    <CreditCard size={12} />
+                    Payment method
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {paymentMethods.filter((p) => !p.is_archived).map((pm) => (
+                      <button
+                        key={pm.id}
+                        onClick={() => setPaymentMethodId(pm.id === paymentMethodId ? null : pm.id)}
+                        className={cn(
+                          'rounded-xl px-3 py-1.5 text-sm font-medium transition-all',
+                          paymentMethodId === pm.id
+                            ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300'
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+                        )}
+                      >
+                        {pm.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Date */}
+                <div className="relative">
+                  <Calendar size={15} className="absolute left-3 top-3 text-gray-400" />
+                  <input
+                    type="date"
+                    value={transactionDate}
+                    onChange={(e) => setTransactionDate(e.target.value)}
+                    className="w-full rounded-xl bg-gray-50 dark:bg-gray-800 pl-9 pr-3 py-2.5 text-sm text-gray-900 dark:text-gray-50 outline-none focus:ring-2 focus:ring-primary-500/50"
+                  />
+                </div>
+
+                {/* Notes */}
+                <div className="relative">
+                  <Tag size={15} className="absolute left-3 top-3 text-gray-400" />
+                  <input
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Notes"
+                    className="w-full rounded-xl bg-gray-50 dark:bg-gray-800 pl-9 pr-3 py-2.5 text-sm text-gray-900 dark:text-gray-50 placeholder-gray-400 outline-none focus:ring-2 focus:ring-primary-500/50"
+                  />
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Save Button */}
+      <div className="px-5 pb-4">
+        <Button
+          onClick={handleSave}
+          disabled={!canSave}
+          loading={saving}
+          size="lg"
+          className={cn(
+            'w-full text-base transition-all duration-300',
+            saved && 'bg-emerald-500 hover:bg-emerald-500'
+          )}
+        >
+          <AnimatePresence mode="wait">
+            {saved ? (
+              <motion.span
+                key="saved"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                exit={{ scale: 0 }}
+                className="flex items-center gap-2"
+              >
+                <Check size={20} />
+                Saved!
+              </motion.span>
+            ) : (
+              <motion.span key="save" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                {canSave
+                  ? `Save $${amount === '0' ? '0.00' : amount}`
+                  : selectedCategory
+                  ? 'Enter amount'
+                  : 'Select a category'}
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </Button>
+      </div>
+    </div>
+  )
+}
