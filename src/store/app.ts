@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { User } from '@supabase/supabase-js'
-import type { Transaction, Category, PaymentMethod, UserPreferences, Budget, Investment } from '@/types'
+import type { Transaction, Category, PaymentMethod, UserPreferences, Budget, Investment, RecurringExpense } from '@/types'
 import { DEMO_CATEGORIES, DEMO_TRANSACTIONS, DEMO_PAYMENT_METHODS, DEMO_BUDGETS, enrichDemoTransactions } from '@/data/demo'
 import { isSupabaseConfigured } from '@/lib/supabase'
 
@@ -18,6 +18,7 @@ interface AppState {
   paymentMethods: PaymentMethod[]
   budgets: Budget[]
   investments: Investment[]
+  recurringExpenses: RecurringExpense[]
   preferences: UserPreferences | null
 
   // UI
@@ -42,6 +43,9 @@ interface AppState {
   addInvestment: (inv: Investment) => void
   updateInvestment: (inv: Investment) => void
   removeInvestment: (id: string) => void
+  addRecurringExpense: (r: RecurringExpense) => void
+  updateRecurringExpense: (r: RecurringExpense) => void
+  removeRecurringExpense: (id: string) => void
   setPreferences: (p: UserPreferences) => void
   setPrivacyMode: (val: boolean) => void
   setTheme: (t: 'light' | 'dark' | 'system') => void
@@ -61,6 +65,7 @@ export const useAppStore = create<AppState>()(
       paymentMethods: [],
       budgets: [],
       investments: [],
+      recurringExpenses: [],
       preferences: null,
       privacyMode: false,
       theme: 'system',
@@ -88,6 +93,9 @@ export const useAppStore = create<AppState>()(
       addInvestment: (inv) => set((s) => ({ investments: [...s.investments, inv] })),
       updateInvestment: (inv) => set((s) => ({ investments: s.investments.map((i) => (i.id === inv.id ? inv : i)) })),
       removeInvestment: (id) => set((s) => ({ investments: s.investments.filter((i) => i.id !== id) })),
+      addRecurringExpense: (r) => set((s) => ({ recurringExpenses: [...s.recurringExpenses, r] })),
+      updateRecurringExpense: (r) => set((s) => ({ recurringExpenses: s.recurringExpenses.map((x) => (x.id === r.id ? r : x)) })),
+      removeRecurringExpense: (id) => set((s) => ({ recurringExpenses: s.recurringExpenses.filter((x) => x.id !== id) })),
       setBudgetForMonth: (year, month, amount) =>
         set((s) => {
           const existing = s.budgets.find(
@@ -156,6 +164,7 @@ export const useAppStore = create<AppState>()(
         isDemoMode: s.isDemoMode,
         budgets: s.isDemoMode ? s.budgets : [],
         investments: s.isDemoMode ? s.investments : [],
+        recurringExpenses: s.isDemoMode ? s.recurringExpenses : [],
         paymentMethods: s.isDemoMode ? s.paymentMethods : [],
       }),
     }

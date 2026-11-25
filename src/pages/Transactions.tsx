@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Search, Download, X, Plus, TrendingUp, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
+import { Search, Download, X, Plus, TrendingUp, ChevronDown, ChevronUp, Trash2, RefreshCw } from 'lucide-react'
 import { useAppStore } from '@/store/app'
 import { useData } from '@/hooks/useData'
 import { TransactionItem } from '@/components/expenses/TransactionItem'
@@ -9,14 +9,15 @@ import { Sheet } from '@/components/ui/Sheet'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { AmountDisplay } from '@/components/ui/AmountDisplay'
+import { CategoryIcon } from '@/components/ui/CategoryIcon'
 import { PeriodSelector, periodToRange } from '@/components/ui/PeriodSelector'
 import { useToast } from '@/components/ui/Toast'
-import type { Transaction, Investment } from '@/types'
+import type { Transaction, Investment, RecurringExpense, Frequency } from '@/types'
 import { formatDate, generateId, nowSGT } from '@/lib/utils'
 import { groupTransactionsByDate } from '@/lib/utils'
-import { format, differenceInDays, parseISO } from 'date-fns'
+import { format, differenceInDays, parseISO, addWeeks, addMonths, addYears } from 'date-fns'
 
-type TabType = 'expenses' | 'income' | 'investments'
+type TabType = 'expenses' | 'income' | 'investments' | 'recurring'
 type InvSort = 'ticker' | 'newest' | 'cost'
 
 // ─── Income Add Form ──────────────────────────────────────────────────────────
@@ -356,6 +357,464 @@ function AddInvestmentSheet({
   )
 }
 
+// ─── Recurring Expenses ───────────────────────────────────────────────────────
+
+const FREQ_LABELS: Record<Frequency, string> = {
+  weekly: 'Weekly',
+  monthly: 'Monthly',
+  quarterly: 'Quarterly',
+  annual: 'Annually',
+}
+
+function advanceDate(date: string, freq: Frequency): string {
+  const d = parseISO(date)
+  switch (freq) {
+    case 'weekly': return format(addWeeks(d, 1), 'yyyy-MM-dd')
+    case 'monthly': return format(addMonths(d, 1), 'yyyy-MM-dd')
+    case 'quarterly': return format(addMonths(d, 3), 'yyyy-MM-dd')
+    case 'annual': return format(addYears(d, 1), 'yyyy-MM-dd')
+  }
+}
+
+type RecurringFormValues = {
+  name: string
+  amount: string
+  categoryId: string
+  paymentMethodId: string
+  frequency: Frequency
+  nextDueDate: string
+}
+
+function AddRecurringSheet({
+  open,
+  onClose,
+  initial,
+  onSave,
+}: {
+  open: boolean
+  onClose: () => void
+  initial?: RecurringExpense | null
+  onSave: (vals: RecurringFormValues) => void
+}) {
+  const { categories, paymentMethods } = useAppStore()
+  const expenseCategories = useMemo(() => categories.filter((c) => c.transaction_type === 'expense'), [categories])
+
+  const [name, setName] = useState(initial?.name ?? '')
+  const [amount, setAmount] = useState(initial ? (initial.amount / 100).toFixed(2) : '')
+  const [categoryId, setCategoryId] = useState(initial?.category_id ?? '')
+  const [paymentMethodId, setPaymentMethodId] = useState(initial?.payment_method_id ?? '')
+  const [frequency, setFrequency] = useState<Frequency>(initial?.frequency ?? 'monthly')
+  const [nextDueDate, setNextDueDate] = useState(initial?.next_payment_date ?? format(new Date(), 'yyyy-MM-dd'))
+
+  // Sync when re-opened with new initial
+  useMemo(() => {
+    if (open) {
+      setName(initial?.name ?? '')
+      setAmount(initial ? (initial.amount / 100).toFixed(2) : '')
+      setCategoryId(initial?.category_id ?? '')
+      setPaymentMethodId(initial?.payment_method_id ?? '')
+      setFrequency(initial?.frequency ?? 'monthly')
+      setNextDueDate(initial?.next_payment_date ?? format(new Date(), 'yyyy-MM-dd'))
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  const canSave = name.trim() !== '' && parseFloat(amount) > 0 && categoryId !== ''
+
+  const handleSave = () => {
+    if (!canSave) return
+    onSave({ name: name.trim(), amount, categoryId, paymentMethodId, frequency, nextDueDate })
+  }
+
+  return (
+    <Sheet open={open} onClose={onClose} title={initial ? 'Edit Recurring' : 'Add Recurring'}>
+      <div className="px-5 flex flex-col gap-4 pb-6">
+        {/* Name */}
+        <div>
+          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Name</label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Netflix, Monthly Rent"
+            className="w-full rounded-xl bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-gray-900 dark:text-gray-50 outline-none focus:ring-2 focus:ring-primary-500/50"
+            autoFocus
+          />
+        </div>
+
+        {/* Amount */}
+        <div>
+          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Amount</label>
+          <div className="relative">
+            <span className="absolute left-3 top-2.5 text-gray-400">$</span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
+              className="w-full rounded-xl bg-gray-50 dark:bg-gray-800 pl-7 pr-3 py-2.5 text-gray-900 dark:text-gray-50 outline-none focus:ring-2 focus:ring-primary-500/50"
+            />
+          </div>
+        </div>
+
+        {/* Category */}
+        <div>
+          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Category</label>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+            {expenseCategories.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => setCategoryId(c.id)}
+                className={`flex-shrink-0 rounded-xl px-3 py-1.5 text-xs font-medium transition-all border ${
+                  categoryId === c.id
+                    ? 'bg-primary-600 text-white border-primary-600'
+                    : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700'
+                }`}
+              >
+                {c.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Payment Method */}
+        {paymentMethods.length > 0 && (
+          <div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Payment Method <span className="text-gray-400 font-normal">(optional)</span></label>
+            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+              <button
+                onClick={() => setPaymentMethodId('')}
+                className={`flex-shrink-0 rounded-xl px-3 py-1.5 text-xs font-medium transition-all border ${
+                  paymentMethodId === ''
+                    ? 'bg-primary-600 text-white border-primary-600'
+                    : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700'
+                }`}
+              >
+                None
+              </button>
+              {paymentMethods.map((pm) => (
+                <button
+                  key={pm.id}
+                  onClick={() => setPaymentMethodId(pm.id)}
+                  className={`flex-shrink-0 rounded-xl px-3 py-1.5 text-xs font-medium transition-all border ${
+                    paymentMethodId === pm.id
+                      ? 'bg-primary-600 text-white border-primary-600'
+                      : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700'
+                  }`}
+                >
+                  {pm.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Frequency */}
+        <div>
+          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Frequency</label>
+          <div className="flex gap-2 flex-wrap">
+            {(['weekly', 'monthly', 'quarterly', 'annual'] as Frequency[]).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFrequency(f)}
+                className={`rounded-xl px-3 py-1.5 text-xs font-medium transition-all border ${
+                  frequency === f
+                    ? 'bg-primary-600 text-white border-primary-600'
+                    : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700'
+                }`}
+              >
+                {FREQ_LABELS[f]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Next Due Date */}
+        <div>
+          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Next Due Date</label>
+          <input
+            type="date"
+            value={nextDueDate}
+            onChange={(e) => setNextDueDate(e.target.value)}
+            className="w-full rounded-xl bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-gray-900 dark:text-gray-50 outline-none focus:ring-2 focus:ring-primary-500/50"
+          />
+        </div>
+
+        <Button onClick={handleSave} disabled={!canSave} className="w-full mt-2">
+          {initial ? 'Save Changes' : 'Add Recurring'}
+        </Button>
+      </div>
+    </Sheet>
+  )
+}
+
+function ScopeDialog({
+  open,
+  onAll,
+  onThis,
+  onCancel,
+}: {
+  open: boolean
+  onAll: () => void
+  onThis: () => void
+  onCancel: () => void
+}) {
+  if (!open) return null
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 pb-safe" onClick={onCancel}>
+      <div
+        className="w-full max-w-md bg-white dark:bg-gray-900 rounded-t-2xl px-5 pt-5 pb-8 flex flex-col gap-3"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="text-base font-semibold text-gray-800 dark:text-gray-100 mb-1">Apply changes to…</p>
+        <button
+          onClick={onAll}
+          className="w-full rounded-xl bg-primary-600 text-white py-3.5 text-sm font-semibold"
+        >
+          All future occurrences
+        </button>
+        <button
+          onClick={onThis}
+          className="w-full rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-3.5 text-sm font-semibold"
+        >
+          This occurrence only
+        </button>
+        <button onClick={onCancel} className="text-xs text-gray-400 mt-1 py-1">Cancel</button>
+      </div>
+    </div>
+  )
+}
+
+function RecurringTab({ externalAddOpen, onExternalAddClose }: { externalAddOpen?: boolean; onExternalAddClose?: () => void }) {
+  const { recurringExpenses, categories, paymentMethods, addRecurringExpense, updateRecurringExpense, removeRecurringExpense, user } = useAppStore()
+  const { saveTransaction } = useData()
+  const { toast } = useToast()
+
+  const [addOpen, setAddOpen] = useState(false)
+  const effectiveAddOpen = externalAddOpen ?? addOpen
+  const closeAddOpen = () => { setAddOpen(false); onExternalAddClose?.() }
+  const [editRec, setEditRec] = useState<RecurringExpense | null>(null)
+  const [pendingEdit, setPendingEdit] = useState<{ rec: RecurringExpense; vals: RecurringFormValues } | null>(null)
+  const [scopeOpen, setScopeOpen] = useState(false)
+
+  const today = format(new Date(), 'yyyy-MM-dd')
+
+  const sorted = useMemo(
+    () => [...recurringExpenses].sort((a, b) => (a.next_payment_date > b.next_payment_date ? 1 : -1)),
+    [recurringExpenses]
+  )
+  const due = sorted.filter((r) => r.next_payment_date <= today)
+  const upcoming = sorted.filter((r) => r.next_payment_date > today)
+
+  const handleRecord = async (rec: RecurringExpense) => {
+    await saveTransaction({
+      categoryId: rec.category_id,
+      subcategoryId: rec.subcategory_id,
+      amount: rec.amount,
+      paymentMethodId: rec.payment_method_id,
+      description: rec.name,
+      merchant: undefined,
+      transactionDate: `${rec.next_payment_date}T${format(new Date(), 'HH:mm:ss')}`,
+      notes: rec.notes ?? '',
+      isNeeds: null,
+      type: 'expense',
+    })
+    updateRecurringExpense({ ...rec, next_payment_date: advanceDate(rec.next_payment_date, rec.frequency), updated_at: nowSGT() })
+    toast('Recorded', { type: 'success' })
+  }
+
+  const handleSkip = (rec: RecurringExpense) => {
+    updateRecurringExpense({ ...rec, next_payment_date: advanceDate(rec.next_payment_date, rec.frequency), updated_at: nowSGT() })
+    toast('Skipped', { type: 'info' })
+  }
+
+  const handleEditSave = (vals: RecurringFormValues) => {
+    if (!editRec) return
+    setEditRec(null)
+    setPendingEdit({ rec: editRec, vals })
+    setScopeOpen(true)
+  }
+
+  const handleScopeAll = () => {
+    if (!pendingEdit) return
+    const { rec, vals } = pendingEdit
+    updateRecurringExpense({
+      ...rec,
+      name: vals.name,
+      amount: Math.round(parseFloat(vals.amount) * 100),
+      category_id: vals.categoryId,
+      payment_method_id: vals.paymentMethodId || null,
+      frequency: vals.frequency,
+      next_payment_date: vals.nextDueDate,
+      updated_at: nowSGT(),
+    })
+    setScopeOpen(false)
+    setPendingEdit(null)
+    toast('Updated all future occurrences', { type: 'success' })
+  }
+
+  const handleScopeThis = async () => {
+    if (!pendingEdit) return
+    const { rec, vals } = pendingEdit
+    // Record a one-off transaction with the modified values
+    await saveTransaction({
+      categoryId: vals.categoryId,
+      subcategoryId: rec.subcategory_id,
+      amount: Math.round(parseFloat(vals.amount) * 100),
+      paymentMethodId: vals.paymentMethodId || null,
+      description: vals.name,
+      merchant: undefined,
+      transactionDate: `${vals.nextDueDate}T${format(new Date(), 'HH:mm:ss')}`,
+      notes: rec.notes ?? '',
+      isNeeds: null,
+      type: 'expense',
+    })
+    // Advance the original recurring expense untouched
+    updateRecurringExpense({ ...rec, next_payment_date: advanceDate(rec.next_payment_date, rec.frequency), updated_at: nowSGT() })
+    setScopeOpen(false)
+    setPendingEdit(null)
+    toast('Recorded this occurrence', { type: 'success' })
+  }
+
+  const handleAdd = (vals: RecurringFormValues) => {
+    const cat = categories.find((c) => c.id === vals.categoryId)
+    const pm = paymentMethods.find((p) => p.id === vals.paymentMethodId)
+    const rec: RecurringExpense = {
+      id: generateId(),
+      user_id: user?.id ?? 'demo-user',
+      name: vals.name,
+      amount: Math.round(parseFloat(vals.amount) * 100),
+      currency: 'SGD',
+      category_id: vals.categoryId,
+      subcategory_id: null,
+      payment_method_id: vals.paymentMethodId || null,
+      frequency: vals.frequency,
+      next_payment_date: vals.nextDueDate,
+      is_active: true,
+      auto_record: false,
+      notes: null,
+      created_at: nowSGT(),
+      updated_at: nowSGT(),
+      category: cat,
+      payment_method: pm ?? undefined,
+    }
+    addRecurringExpense(rec)
+    setAddOpen(false)
+    toast('Recurring expense added', { type: 'success' })
+  }
+
+  if (sorted.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center px-8">
+        <div className="text-5xl mb-4">🔁</div>
+        <p className="text-gray-600 dark:text-gray-400 font-medium mb-1">No recurring expenses</p>
+        <p className="text-sm text-gray-400 dark:text-gray-500 mb-6">Track subscriptions, rent, and regular bills</p>
+        <Button size="sm" onClick={() => setAddOpen(true)} className="gap-1.5">
+          <Plus size={14} />
+          Add recurring
+        </Button>
+        <AddRecurringSheet open={effectiveAddOpen} onClose={closeAddOpen} onSave={handleAdd} />
+      </div>
+    )
+  }
+
+  const RecurringItem = ({ rec, overdue }: { rec: RecurringExpense; overdue: boolean }) => {
+    const daysOverdue = differenceInDays(new Date(), parseISO(rec.next_payment_date))
+    const cat = rec.category ?? categories.find((c) => c.id === rec.category_id)
+    return (
+      <div className={`flex items-start gap-3 px-4 py-3 ${overdue ? 'bg-amber-50 dark:bg-amber-900/10' : ''}`}>
+        <div className="mt-0.5 flex-shrink-0">
+          {cat ? (
+            <CategoryIcon icon={cat.icon} color={cat.color} size="sm" />
+          ) : (
+            <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+              <RefreshCw size={14} className="text-gray-400" />
+            </div>
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+            <span className="font-medium text-sm text-gray-900 dark:text-gray-50 truncate">{rec.name}</span>
+            <span className="text-[10px] font-semibold bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded-full flex-shrink-0">
+              {FREQ_LABELS[rec.frequency]}
+            </span>
+          </div>
+          <p className={`text-xs mb-1.5 ${overdue ? 'text-amber-600 dark:text-amber-400 font-medium' : 'text-gray-400 dark:text-gray-500'}`}>
+            {overdue
+              ? daysOverdue === 0
+                ? 'Due today'
+                : `Overdue · ${daysOverdue} day${daysOverdue !== 1 ? 's' : ''}`
+              : `Due ${format(parseISO(rec.next_payment_date), 'd MMM')}`}
+          </p>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => handleRecord(rec)}
+              className="text-xs font-semibold text-primary-600 dark:text-primary-400"
+            >
+              Record
+            </button>
+            <button
+              onClick={() => handleSkip(rec)}
+              className="text-xs font-semibold text-gray-400 dark:text-gray-500"
+            >
+              Skip
+            </button>
+            <button
+              onClick={() => setEditRec(rec)}
+              className="text-xs font-semibold text-gray-400 dark:text-gray-500"
+            >
+              Edit
+            </button>
+          </div>
+        </div>
+        <div className="flex flex-col items-end gap-2 flex-shrink-0">
+          <span className="text-sm font-semibold text-gray-900 dark:text-gray-50">
+            ${(rec.amount / 100).toFixed(2)}
+          </span>
+          <button
+            onClick={() => removeRecurringExpense(rec.id)}
+            className="text-gray-300 dark:text-gray-600 hover:text-red-400 transition-colors"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="px-5 flex flex-col gap-4">
+      {due.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wide mb-2">Due</p>
+          <Card className="overflow-hidden divide-y divide-gray-100 dark:divide-gray-800">
+            {due.map((rec) => <RecurringItem key={rec.id} rec={rec} overdue />)}
+          </Card>
+        </div>
+      )}
+      {upcoming.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Upcoming</p>
+          <Card className="overflow-hidden divide-y divide-gray-100 dark:divide-gray-800">
+            {upcoming.map((rec) => <RecurringItem key={rec.id} rec={rec} overdue={false} />)}
+          </Card>
+        </div>
+      )}
+
+      <AddRecurringSheet open={effectiveAddOpen} onClose={closeAddOpen} onSave={handleAdd} />
+      <AddRecurringSheet open={editRec !== null} onClose={() => setEditRec(null)} initial={editRec} onSave={handleEditSave} />
+      <ScopeDialog
+        open={scopeOpen}
+        onAll={handleScopeAll}
+        onThis={handleScopeThis}
+        onCancel={() => { setScopeOpen(false); setPendingEdit(null) }}
+      />
+    </div>
+  )
+}
+
 // ─── Investments Tab ──────────────────────────────────────────────────────────
 
 function InvestmentsTab() {
@@ -617,6 +1076,7 @@ export function Transactions() {
   const [search, setSearch] = useState('')
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null)
   const [addIncomeOpen, setAddIncomeOpen] = useState(false)
+  const [addRecurringOpen, setAddRecurringOpen] = useState(false)
 
   const { start: periodStart, end: periodEnd } = periodToRange(year, month)
 
@@ -718,6 +1178,7 @@ export function Transactions() {
     { value: 'expenses', label: 'Expenses' },
     { value: 'income', label: 'Income' },
     { value: 'investments', label: 'Investments' },
+    { value: 'recurring', label: 'Recurring' },
   ]
 
   return (
@@ -735,6 +1196,14 @@ export function Transactions() {
           ) : tab === 'income' ? (
             <button
               onClick={() => setAddIncomeOpen(true)}
+              className="flex items-center gap-1.5 rounded-xl bg-primary-600 text-white px-3 py-2 text-sm font-medium"
+            >
+              <Plus size={14} />
+              Add
+            </button>
+          ) : tab === 'recurring' ? (
+            <button
+              onClick={() => setAddRecurringOpen(true)}
               className="flex items-center gap-1.5 rounded-xl bg-primary-600 text-white px-3 py-2 text-sm font-medium"
             >
               <Plus size={14} />
@@ -866,6 +1335,14 @@ export function Transactions() {
 
       {/* ── Investments Tab ── */}
       {tab === 'investments' && <InvestmentsTab />}
+
+      {/* ── Recurring Tab ── */}
+      {tab === 'recurring' && (
+        <RecurringTab
+          externalAddOpen={addRecurringOpen}
+          onExternalAddClose={() => setAddRecurringOpen(false)}
+        />
+      )}
 
       {/* Detail Sheet */}
       <Sheet open={selectedTx !== null} onClose={() => setSelectedTx(null)} title="Transaction">
