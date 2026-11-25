@@ -113,7 +113,10 @@ export function Home() {
   return (
     <div className="min-h-screen bg-primary-700 md:bg-gray-50 dark:bg-gray-950">
       {/* Mobile Header (hidden on desktop) */}
-      <div className="md:hidden bg-gradient-to-br from-primary-600 to-primary-800 px-5 pt-14 pb-6 safe-area-inset-top">
+      <div
+        className="md:hidden bg-gradient-to-br from-primary-600 to-primary-800 px-5 pb-6"
+        style={{ paddingTop: 'max(3.5rem, calc(env(safe-area-inset-top, 0px) + 1.25rem))' }}
+      >
         <div className="flex items-center justify-between mb-5">
           <div>
             <p className="text-primary-200 text-sm">{greeting} 👋</p>

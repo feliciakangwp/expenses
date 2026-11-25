@@ -40,7 +40,7 @@ export function QuickExpenseEntry({
   const [subcategoryId, setSubcategoryId] = useState<string | null>(null)
   const [description, setDescription] = useState('')
   const [transactionDate, setTransactionDate] = useState(format(new Date(), "yyyy-MM-dd"))
-  const [showMore, setShowMore] = useState(false)
+  const [showMore, setShowMore] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
@@ -146,7 +146,7 @@ export function QuickExpenseEntry({
           onClick={() => setShowMore(!showMore)}
           className="flex w-full items-center justify-between py-2 text-sm font-medium text-gray-500 dark:text-gray-400"
         >
-          <span>More details</span>
+          <span>{showMore ? 'Less details' : 'More details'}</span>
           {showMore ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
 
