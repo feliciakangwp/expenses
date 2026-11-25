@@ -6,7 +6,7 @@ export type TransactionType =
   | 'transfer'
   | 'refund'
 
-export type Frequency = 'weekly' | 'monthly' | 'quarterly' | 'annual'
+export type Frequency = 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'annual'
 
 export interface Profile {
   id: string

@@ -24,7 +24,7 @@ interface QuickExpenseEntryProps {
     transactionDate: string
     isNeeds: boolean | null
     isRecurring: boolean
-    recurringFrequency: 'weekly' | 'monthly' | 'quarterly' | 'annual'
+    recurringFrequency: 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'annual'
   }) => Promise<void>
 }
 
@@ -43,7 +43,7 @@ export function QuickExpenseEntry({
   const [description, setDescription] = useState('')
   const [transactionDate, setTransactionDate] = useState(format(new Date(), "yyyy-MM-dd"))
   const [isRecurring, setIsRecurring] = useState(false)
-  const [recurringFreq, setRecurringFreq] = useState<'weekly' | 'monthly' | 'quarterly' | 'annual'>('monthly')
+  const [recurringFreq, setRecurringFreq] = useState<'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'annual'>('monthly')
   const [showMore, setShowMore] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -228,7 +228,7 @@ export function QuickExpenseEntry({
                   </button>
                   {isRecurring && (
                     <div className="flex gap-2 mt-2 flex-wrap">
-                      {(['weekly', 'monthly', 'quarterly', 'annual'] as const).map((f) => (
+                      {(['weekly', 'biweekly', 'monthly', 'quarterly', 'annual'] as const).map((f) => (
                         <button
                           key={f}
                           type="button"

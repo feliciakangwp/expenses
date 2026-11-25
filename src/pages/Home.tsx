@@ -14,17 +14,18 @@ import type { Transaction, Subcategory, RecurringExpense } from '@/types'
 import { getMonthRange, generateId, nowSGT } from '@/lib/utils'
 import { format, parseISO, addWeeks, addMonths, addYears } from 'date-fns'
 
-function advanceDate(date: string, freq: 'weekly' | 'monthly' | 'quarterly' | 'annual'): string {
+function advanceDate(date: string, freq: 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'annual'): string {
   const d = parseISO(date)
   switch (freq) {
     case 'weekly': return format(addWeeks(d, 1), 'yyyy-MM-dd')
+    case 'biweekly': return format(addWeeks(d, 2), 'yyyy-MM-dd')
     case 'monthly': return format(addMonths(d, 1), 'yyyy-MM-dd')
     case 'quarterly': return format(addMonths(d, 3), 'yyyy-MM-dd')
     case 'annual': return format(addYears(d, 1), 'yyyy-MM-dd')
   }
 }
 
-const FREQ_LABELS: Record<string, string> = { weekly: 'Weekly', monthly: 'Monthly', quarterly: 'Quarterly', annual: 'Annually' }
+const FREQ_LABELS: Record<string, string> = { weekly: 'Weekly', biweekly: 'Bi-weekly', monthly: 'Monthly', quarterly: 'Quarterly', annual: 'Annually' }
 
 function RecurringWidget() {
   const { recurringExpenses, updateRecurringExpense, categories } = useAppStore()
