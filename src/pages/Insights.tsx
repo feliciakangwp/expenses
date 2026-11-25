@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
+
+const PM_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#3b82f6', '#ec4899', '#14b8a6', '#f97316', '#a855f7']
 import { useAppStore } from '@/store/app'
 import { useCategorySpending } from '@/hooks/useStats'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -275,44 +277,40 @@ export function Insights() {
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
               Spending by Payment Method
             </h3>
-            <ResponsiveContainer width="100%" height={Math.max(80, pmSpending.length * 44)}>
-              <BarChart
-                data={pmSpending}
-                layout="vertical"
-                margin={{ top: 0, right: 48, left: 0, bottom: 0 }}
-                barCategoryGap="30%"
-              >
-                <XAxis type="number" hide />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  tick={{ fontSize: 12 }}
-                  tickLine={false}
-                  axisLine={false}
-                  width={96}
-                />
-                <Tooltip
-                  formatter={(value) => [privacyMode ? '••••' : `$${Number(value).toFixed(2)}`, 'Spent']}
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', fontSize: '12px' }}
-                  cursor={{ fill: 'transparent' }}
-                />
-                <Bar dataKey="amount" fill="var(--color-primary-500)" radius={[0, 4, 4, 0]}>
-                  {pmSpending.map((_, i) => (
-                    <Cell
-                      key={i}
-                      fill={`var(--color-primary-${[600, 500, 400, 300, 200][Math.min(i, 4)]})`}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-            <div className="mt-3 flex flex-col gap-1.5">
-              {pmSpending.map((pm) => (
-                <div key={pm.name} className="flex items-center justify-between text-xs">
-                  <span className="text-gray-500 dark:text-gray-400 truncate max-w-[55%]">{pm.name}</span>
-                  <span className="text-gray-400 dark:text-gray-500">{pm.pct.toFixed(0)}%</span>
-                </div>
-              ))}
+            <div className="flex flex-col items-center gap-4">
+              <ResponsiveContainer width={160} height={160}>
+                <PieChart>
+                  <Pie
+                    data={pmSpending}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={72}
+                    dataKey="amount"
+                    startAngle={90}
+                    endAngle={-270}
+                    paddingAngle={pmSpending.length > 1 ? 2 : 0}
+                    strokeWidth={0}
+                  >
+                    {pmSpending.map((_, i) => (
+                      <Cell key={i} fill={PM_COLORS[i % PM_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value) => [privacyMode ? '••••' : `$${Number(value).toFixed(2)}`, 'Spent']}
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', fontSize: '12px' }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="w-full grid grid-cols-2 gap-x-4 gap-y-2">
+                {pmSpending.map((pm, i) => (
+                  <div key={pm.name} className="flex items-center gap-2 min-w-0">
+                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: PM_COLORS[i % PM_COLORS.length] }} />
+                    <span className="text-xs text-gray-600 dark:text-gray-400 truncate">{pm.name}</span>
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300 flex-shrink-0 ml-auto">{pm.pct.toFixed(0)}%</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </Card>
         )}
