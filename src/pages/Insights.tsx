@@ -88,6 +88,24 @@ export function Insights() {
     color: cs.category.color,
   }))
 
+  const pmSpending = useMemo(() => {
+    const map = new Map<string, { name: string; amount: number }>()
+    for (const t of expenses) {
+      const key = t.payment_method_id ?? '__cash__'
+      const name = t.payment_method?.name ?? 'Cash / Other'
+      const cur = map.get(key)
+      if (cur) cur.amount += t.amount
+      else map.set(key, { name, amount: t.amount })
+    }
+    return Array.from(map.values())
+      .sort((a, b) => b.amount - a.amount)
+      .map((pm) => ({
+        name: pm.name,
+        amount: pm.amount / 100,
+        pct: totalSpend > 0 ? (pm.amount / totalSpend) * 100 : 0,
+      }))
+  }, [expenses, totalSpend])
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <PageHeader title="Insights" />
@@ -248,6 +266,54 @@ export function Insights() {
                 <Bar dataKey="amount" fill="var(--color-primary-600)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
+          </Card>
+        )}
+
+        {/* Spending by Payment Method */}
+        {pmSpending.length > 0 && (
+          <Card className="p-4">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
+              Spending by Payment Method
+            </h3>
+            <ResponsiveContainer width="100%" height={Math.max(80, pmSpending.length * 44)}>
+              <BarChart
+                data={pmSpending}
+                layout="vertical"
+                margin={{ top: 0, right: 48, left: 0, bottom: 0 }}
+                barCategoryGap="30%"
+              >
+                <XAxis type="number" hide />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  tick={{ fontSize: 12 }}
+                  tickLine={false}
+                  axisLine={false}
+                  width={96}
+                />
+                <Tooltip
+                  formatter={(value) => [privacyMode ? '••••' : `$${Number(value).toFixed(2)}`, 'Spent']}
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', fontSize: '12px' }}
+                  cursor={{ fill: 'transparent' }}
+                />
+                <Bar dataKey="amount" fill="var(--color-primary-500)" radius={[0, 4, 4, 0]}>
+                  {pmSpending.map((_, i) => (
+                    <Cell
+                      key={i}
+                      fill={`var(--color-primary-${[600, 500, 400, 300, 200][Math.min(i, 4)]})`}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+            <div className="mt-3 flex flex-col gap-1.5">
+              {pmSpending.map((pm) => (
+                <div key={pm.name} className="flex items-center justify-between text-xs">
+                  <span className="text-gray-500 dark:text-gray-400 truncate max-w-[55%]">{pm.name}</span>
+                  <span className="text-gray-400 dark:text-gray-500">{pm.pct.toFixed(0)}%</span>
+                </div>
+              ))}
+            </div>
           </Card>
         )}
 
