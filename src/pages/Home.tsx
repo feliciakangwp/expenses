@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, ChevronDown, ChevronUp } from 'lucide-react'
 import { useAppStore } from '@/store/app'
 import { useData } from '@/hooks/useData'
 import { useStats } from '@/hooks/useStats'
@@ -10,8 +10,123 @@ import { AmountDisplay } from '@/components/ui/AmountDisplay'
 import { Card } from '@/components/ui/Card'
 import { Sheet } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
-import type { Transaction, Subcategory } from '@/types'
-import { getMonthRange } from '@/lib/utils'
+import type { Transaction, Subcategory, RecurringExpense } from '@/types'
+import { getMonthRange, generateId, nowSGT } from '@/lib/utils'
+import { format, parseISO, addWeeks, addMonths, addYears } from 'date-fns'
+
+function advanceDate(date: string, freq: 'weekly' | 'monthly' | 'quarterly' | 'annual'): string {
+  const d = parseISO(date)
+  switch (freq) {
+    case 'weekly': return format(addWeeks(d, 1), 'yyyy-MM-dd')
+    case 'monthly': return format(addMonths(d, 1), 'yyyy-MM-dd')
+    case 'quarterly': return format(addMonths(d, 3), 'yyyy-MM-dd')
+    case 'annual': return format(addYears(d, 1), 'yyyy-MM-dd')
+  }
+}
+
+const FREQ_LABELS: Record<string, string> = { weekly: 'Weekly', monthly: 'Monthly', quarterly: 'Quarterly', annual: 'Annually' }
+
+function RecurringWidget() {
+  const { recurringExpenses, updateRecurringExpense, categories } = useAppStore()
+  const { saveTransaction } = useData()
+  const { toast } = useToast()
+  const [open, setOpen] = useState(false)
+  const today = format(new Date(), 'yyyy-MM-dd')
+
+  const active = recurringExpenses.filter((r) => r.is_active)
+  if (active.length === 0) return null
+
+  const overdue = active.filter((r) => r.next_payment_date <= today)
+  const upcoming = active.filter((r) => r.next_payment_date > today)
+
+  const handleRecord = async (rec: RecurringExpense) => {
+    const cat = categories.find((c) => c.id === rec.category_id)
+    if (!cat) return
+    try {
+      await saveTransaction({
+        categoryId: rec.category_id,
+        subcategoryId: rec.subcategory_id,
+        amount: rec.amount,
+        paymentMethodId: rec.payment_method_id,
+        description: rec.name,
+        transactionDate: `${rec.next_payment_date}T00:00:00`,
+        notes: '',
+        isNeeds: cat.is_needs,
+        type: 'expense',
+      })
+      updateRecurringExpense({ ...rec, next_payment_date: advanceDate(rec.next_payment_date, rec.frequency), updated_at: nowSGT() })
+      toast(`${rec.name} recorded`, { type: 'success' })
+    } catch {
+      toast('Failed to record', { type: 'error' })
+    }
+  }
+
+  const handleSkip = (rec: RecurringExpense) => {
+    updateRecurringExpense({ ...rec, next_payment_date: advanceDate(rec.next_payment_date, rec.frequency), updated_at: nowSGT() })
+    toast(`${rec.name} skipped`, { type: 'info' })
+  }
+
+  return (
+    <Card className="mx-4 md:mx-0 overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-4 py-3"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Recurring</span>
+          {overdue.length > 0 && (
+            <span className="text-[10px] font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full">
+              {overdue.length} due
+            </span>
+          )}
+          <span className="text-xs text-gray-400">{active.length} items</span>
+        </div>
+        {open ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+      </button>
+
+      {open && (
+        <div className="border-t border-gray-100 dark:border-gray-800 divide-y divide-gray-50 dark:divide-gray-800/50">
+          {[...overdue, ...upcoming].map((rec) => {
+            const isDue = rec.next_payment_date <= today
+            const cat = categories.find((c) => c.id === rec.category_id)
+            return (
+              <div key={rec.id} className={`px-4 py-3 ${isDue ? 'bg-amber-50 dark:bg-amber-900/10' : ''}`}>
+                <div className="flex items-center gap-3">
+                  {cat && <CategoryIcon icon={cat.icon} color={cat.color} size="sm" />}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{rec.name}</span>
+                      <span className="text-[10px] font-medium text-gray-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded-full flex-shrink-0">{FREQ_LABELS[rec.frequency]}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      ${(rec.amount / 100).toFixed(2)} · {isDue
+                        ? <span className="text-amber-600 dark:text-amber-400">Due {rec.next_payment_date}</span>
+                        : `Next ${rec.next_payment_date}`}
+                    </p>
+                  </div>
+                  <div className="flex gap-1 flex-shrink-0">
+                    <button
+                      onClick={() => handleRecord(rec)}
+                      className="rounded-lg bg-primary-600 text-white text-xs font-medium px-2.5 py-1.5"
+                    >
+                      Record
+                    </button>
+                    <button
+                      onClick={() => handleSkip(rec)}
+                      className="rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs font-medium px-2.5 py-1.5"
+                    >
+                      Skip
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </Card>
+  )
+}
 
 export function Home() {
   const {
@@ -91,6 +206,27 @@ export function Home() {
         type: 'expense',
       })
       if (saved) {
+        if (data.isRecurring) {
+          const rec: RecurringExpense = {
+            id: generateId(),
+            user_id: saved.user_id,
+            name: data.description || data.category.name,
+            amount: data.amount,
+            currency: 'SGD',
+            category_id: data.category.id,
+            subcategory_id: data.subcategoryId,
+            payment_method_id: data.paymentMethodId,
+            frequency: data.recurringFrequency,
+            next_payment_date: advanceDate(data.transactionDate.split('T')[0], data.recurringFrequency),
+            is_active: true,
+            auto_record: false,
+            notes: null,
+            created_at: nowSGT(),
+            updated_at: nowSGT(),
+            category: data.category,
+          }
+          useAppStore.getState().addRecurringExpense(rec)
+        }
         toast('Expense saved', {
           type: 'success',
           action: {
@@ -297,6 +433,9 @@ export function Home() {
               </div>
             </Card>
           )}
+
+          {/* Recurring Expenses */}
+          <RecurringWidget />
 
         </div>
       </div>

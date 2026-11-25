@@ -23,6 +23,8 @@ interface QuickExpenseEntryProps {
     description: string
     transactionDate: string
     isNeeds: boolean | null
+    isRecurring: boolean
+    recurringFrequency: 'weekly' | 'monthly' | 'quarterly' | 'annual'
   }) => Promise<void>
 }
 
@@ -40,6 +42,8 @@ export function QuickExpenseEntry({
   const [subcategoryId, setSubcategoryId] = useState<string | null>(null)
   const [description, setDescription] = useState('')
   const [transactionDate, setTransactionDate] = useState(format(new Date(), "yyyy-MM-dd"))
+  const [isRecurring, setIsRecurring] = useState(false)
+  const [recurringFreq, setRecurringFreq] = useState<'weekly' | 'monthly' | 'quarterly' | 'annual'>('monthly')
   const [showMore, setShowMore] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -59,6 +63,8 @@ export function QuickExpenseEntry({
         description,
         transactionDate: `${transactionDate}T${format(new Date(), 'HH:mm:ss')}`,
         isNeeds: selectedCategory.is_needs,
+        isRecurring,
+        recurringFrequency: recurringFreq,
       })
       setSaved(true)
       setTimeout(() => {
@@ -67,6 +73,7 @@ export function QuickExpenseEntry({
         setDescription('')
         setSubcategoryId(null)
         setTransactionDate(format(new Date(), "yyyy-MM-dd"))
+        setIsRecurring(false)
         setShowMore(false)
       }, 1200)
     } finally {
@@ -205,6 +212,34 @@ export function QuickExpenseEntry({
                     onChange={(e) => setTransactionDate(e.target.value)}
                     className="w-full rounded-xl bg-gray-50 dark:bg-gray-800 pl-9 pr-3 py-2.5 text-sm text-gray-900 dark:text-gray-50 outline-none focus:ring-2 focus:ring-primary-500/50"
                   />
+                </div>
+
+                {/* Recurring */}
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setIsRecurring(!isRecurring)}
+                    className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${isRecurring ? 'bg-primary-600 border-primary-600' : 'border-gray-300 dark:border-gray-600'}`}>
+                      {isRecurring && <Check size={10} className="text-white" />}
+                    </div>
+                    Recurring
+                  </button>
+                  {isRecurring && (
+                    <div className="flex gap-2 mt-2 flex-wrap">
+                      {(['weekly', 'monthly', 'quarterly', 'annual'] as const).map((f) => (
+                        <button
+                          key={f}
+                          type="button"
+                          onClick={() => setRecurringFreq(f)}
+                          className={`rounded-xl px-3 py-1.5 text-xs font-medium transition-all capitalize ${recurringFreq === f ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}
+                        >
+                          {f}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>
