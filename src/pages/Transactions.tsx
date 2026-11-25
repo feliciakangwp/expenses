@@ -93,7 +93,7 @@ export function Transactions() {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-24">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <PageHeader
         title="Transactions"
         right={

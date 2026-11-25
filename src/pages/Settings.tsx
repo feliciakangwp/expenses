@@ -29,10 +29,10 @@ export function Settings() {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-24">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <PageHeader title="Settings" />
 
-      <div className="px-5 flex flex-col gap-4">
+      <div className="px-5 md:max-w-lg flex flex-col gap-4">
         {/* Profile */}
         <Card className="p-4">
           <div className="flex items-center gap-3">

@@ -111,9 +111,9 @@ export function Home() {
   const greeting = now.getHours() < 12 ? 'Good morning' : now.getHours() < 18 ? 'Good afternoon' : 'Good evening'
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-24">
-      {/* Header */}
-      <div className="bg-gradient-to-br from-primary-600 to-primary-800 px-5 pt-14 pb-6 safe-area-inset-top">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      {/* Mobile Header (hidden on desktop) */}
+      <div className="md:hidden bg-gradient-to-br from-primary-600 to-primary-800 px-5 pt-14 pb-6 safe-area-inset-top">
         <div className="flex items-center justify-between mb-5">
           <div>
             <p className="text-primary-200 text-sm">{greeting} 👋</p>
@@ -134,7 +134,7 @@ export function Home() {
           </div>
         </div>
 
-        {/* Stats Row */}
+        {/* Stats Row — mobile */}
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: 'Today', value: stats.today },
@@ -148,7 +148,6 @@ export function Home() {
           ))}
         </div>
 
-        {/* Budget Bar */}
         {stats.monthBudget && (
           <div className="mt-3 rounded-2xl bg-white/10 backdrop-blur-sm px-3 py-3">
             <div className="flex justify-between mb-1.5">
@@ -167,74 +166,156 @@ export function Home() {
         )}
       </div>
 
-      {/* Quick Entry */}
-      <div className="mx-4 -mt-4">
-        <Card className="overflow-hidden">
-          <div className="px-5 pt-4 pb-2">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-50">Add Expense</h2>
-          </div>
-          <QuickExpenseEntry
-            categories={categories}
-            subcategories={subcategoryMap}
-            paymentMethods={paymentMethods}
-            defaultPaymentMethodId={preferences?.default_payment_method_id}
-            recentCategoryIds={recentCategoryIds}
-            onSave={handleSave}
-          />
-        </Card>
+      {/* Desktop Header (hidden on mobile) */}
+      <div className="hidden md:flex items-center justify-between px-6 pt-8 pb-6">
+        <div>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">{greeting} 👋</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-50 mt-0.5">Dashboard</h1>
+        </div>
+        <div className="flex items-center gap-3">
+          {isDemoMode && (
+            <span className="rounded-xl bg-amber-100 dark:bg-amber-900/30 px-3 py-1.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
+              Demo Mode
+            </span>
+          )}
+          <button
+            onClick={() => setPrivacyMode(!privacyMode)}
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+          >
+            {privacyMode ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
       </div>
 
-      {/* Top Categories */}
-      {topCategories.length > 0 && (
-        <div className="mt-5 px-5">
-          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-            Top categories this month
-          </h2>
-          <div className="flex flex-col gap-2">
-            {topCategories.map(({ category: cat, amount }) => {
-              const monthTotal = stats.month
-              const pct = monthTotal > 0 ? (amount / monthTotal) * 100 : 0
-              return (
-                <div key={cat!.id} className="flex items-center gap-3">
-                  <CategoryIcon icon={cat!.icon} color={cat!.color} size="sm" />
-                  <div className="flex-1">
-                    <div className="flex justify-between mb-1">
-                      <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{cat!.name}</span>
-                      <AmountDisplay cents={amount} size="md" />
-                    </div>
-                    <div className="h-1 w-full rounded-full bg-gray-100 dark:bg-gray-800">
-                      <div
-                        className="h-1 rounded-full"
-                        style={{ width: `${pct}%`, backgroundColor: cat!.color }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Recent Transactions */}
-      {recentTransactions.length > 0 && (
-        <div className="mt-5">
-          <div className="flex items-center justify-between px-5 mb-3">
-            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Recent</h2>
-          </div>
-          <Card>
-            <div className="divide-y divide-gray-50 dark:divide-gray-800/50">
-              {recentTransactions.map((tx) => (
-                <TransactionItem
-                  key={tx.id}
-                  transaction={tx}
-                  onClick={() => setSelectedTx(tx)}
-                />
-              ))}
+      {/* Desktop Stats Row */}
+      <div className="hidden md:grid grid-cols-3 gap-4 px-6 mb-6">
+        {[
+          { label: 'Today', value: stats.today, emoji: '📅' },
+          { label: 'This Week', value: stats.week, emoji: '📆' },
+          { label: 'This Month', value: stats.month, emoji: '🗓️' },
+        ].map(({ label, value, emoji }) => (
+          <Card key={label} className="p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-base">{emoji}</span>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
             </div>
+            <AmountDisplay cents={value} size="xl" />
           </Card>
+        ))}
+      </div>
+
+      {/* Main content area: 2-col on desktop */}
+      <div className="md:grid md:grid-cols-2 md:gap-6 md:px-6 md:items-start">
+        {/* Left: Quick Entry */}
+        <div>
+          {/* Mobile: overlap card */}
+          <div className="mx-4 -mt-4 md:hidden">
+            <Card className="overflow-hidden">
+              <div className="px-5 pt-4 pb-2">
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-50">Add Expense</h2>
+              </div>
+              <QuickExpenseEntry
+                categories={categories}
+                subcategories={subcategoryMap}
+                paymentMethods={paymentMethods}
+                defaultPaymentMethodId={preferences?.default_payment_method_id}
+                recentCategoryIds={recentCategoryIds}
+                onSave={handleSave}
+              />
+            </Card>
+          </div>
+
+          {/* Desktop: regular card */}
+          <div className="hidden md:block">
+            <Card className="overflow-hidden">
+              <div className="px-5 pt-4 pb-2">
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-50">Add Expense</h2>
+              </div>
+              <QuickExpenseEntry
+                categories={categories}
+                subcategories={subcategoryMap}
+                paymentMethods={paymentMethods}
+                defaultPaymentMethodId={preferences?.default_payment_method_id}
+                recentCategoryIds={recentCategoryIds}
+                onSave={handleSave}
+              />
+            </Card>
+          </div>
         </div>
-      )}
+
+        {/* Right: Top Categories + Recent */}
+        <div className="mt-5 md:mt-0 flex flex-col gap-4">
+          {/* Budget bar on desktop */}
+          {stats.monthBudget && (
+            <Card className="hidden md:block p-4">
+              <div className="flex justify-between mb-2">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Monthly Budget</span>
+                <span className="text-xs text-gray-500">
+                  {privacyMode ? '••• / •••' : `$${(stats.monthBudgetUsed / 100).toFixed(0)} / $${(stats.monthBudget / 100).toFixed(0)}`}
+                </span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-gray-100 dark:bg-gray-800">
+                <div
+                  className={`h-2 rounded-full transition-all ${budgetColor}`}
+                  style={{ width: `${Math.min(100, budgetPct ?? 0)}%` }}
+                />
+              </div>
+            </Card>
+          )}
+
+          {/* Top Categories */}
+          {topCategories.length > 0 && (
+            <div className="px-5 md:px-0">
+              <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                Top categories this month
+              </h2>
+              <div className="flex flex-col gap-2">
+                {topCategories.map(({ category: cat, amount }) => {
+                  const monthTotal = stats.month
+                  const pct = monthTotal > 0 ? (amount / monthTotal) * 100 : 0
+                  return (
+                    <div key={cat!.id} className="flex items-center gap-3">
+                      <CategoryIcon icon={cat!.icon} color={cat!.color} size="sm" />
+                      <div className="flex-1">
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{cat!.name}</span>
+                          <AmountDisplay cents={amount} size="md" />
+                        </div>
+                        <div className="h-1 w-full rounded-full bg-gray-100 dark:bg-gray-800">
+                          <div
+                            className="h-1 rounded-full"
+                            style={{ width: `${pct}%`, backgroundColor: cat!.color }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Recent Transactions */}
+          {recentTransactions.length > 0 && (
+            <div className="md:mt-0">
+              <div className="flex items-center justify-between px-5 md:px-0 mb-3">
+                <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Recent</h2>
+              </div>
+              <Card>
+                <div className="divide-y divide-gray-50 dark:divide-gray-800/50">
+                  {recentTransactions.map((tx) => (
+                    <TransactionItem
+                      key={tx.id}
+                      transaction={tx}
+                      onClick={() => setSelectedTx(tx)}
+                    />
+                  ))}
+                </div>
+              </Card>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Transaction Detail Sheet */}
       <Sheet

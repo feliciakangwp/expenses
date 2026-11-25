@@ -88,7 +88,7 @@ export function Insights() {
   }))
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-24">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <PageHeader title="Insights" />
 
       {/* Period Selector */}
@@ -129,14 +129,14 @@ export function Insights() {
               Spending by Category
             </h3>
             <div className="flex items-center gap-4">
-              <ResponsiveContainer width={140} height={140}>
+              <ResponsiveContainer width="100%" height={160} className="max-w-[200px] flex-shrink-0">
                 <PieChart>
                   <Pie
                     data={pieData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={45}
-                    outerRadius={65}
+                    innerRadius={50}
+                    outerRadius={72}
                     dataKey="value"
                     paddingAngle={2}
                   >
@@ -146,12 +146,12 @@ export function Insights() {
                   </Pie>
                 </PieChart>
               </ResponsiveContainer>
-              <div className="flex-1 flex flex-col gap-1.5">
-                {pieData.slice(0, 5).map((d) => {
+              <div className="flex-1 flex flex-col gap-2">
+                {pieData.slice(0, 6).map((d) => {
                   const cs = catSpending.find((x) => x.category.name === d.name)
                   return (
                     <div key={d.name} className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: d.color }} />
+                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: d.color }} />
                       <span className="text-xs text-gray-600 dark:text-gray-400 flex-1 truncate">{d.name}</span>
                       <span className="text-xs font-medium text-gray-800 dark:text-gray-200">
                         {cs ? `${cs.percentage.toFixed(0)}%` : ''}
