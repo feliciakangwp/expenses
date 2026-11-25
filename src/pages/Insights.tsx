@@ -28,6 +28,38 @@ export function Insights() {
   }, [transactions, start, end])
 
   const totalSpend = expenses.reduce((s, t) => s + t.amount, 0)
+
+  const incomeForPeriod = useMemo(() => {
+    return transactions
+      .filter((t) => {
+        if (t.type !== 'income') return false
+        const date = t.transaction_date.split('T')[0]
+        return date >= start && date <= end
+      })
+      .reduce((s, t) => s + t.amount, 0)
+  }, [transactions, start, end])
+
+  const overspent = incomeForPeriod > 0 && totalSpend > incomeForPeriod
+  const remaining = Math.max(0, incomeForPeriod - totalSpend)
+  const overspentAmt = Math.max(0, totalSpend - incomeForPeriod)
+  const spendPct = incomeForPeriod > 0 ? (totalSpend / incomeForPeriod) * 100 : 0
+
+  const incomeExpenseData = useMemo(() => {
+    if (incomeForPeriod === 0 && totalSpend === 0) {
+      return [{ name: 'No data', value: 1, color: '#e5e7eb' }]
+    }
+    if (incomeForPeriod === 0) {
+      return [{ name: 'Expenses', value: totalSpend, color: '#ef4444' }]
+    }
+    const result = []
+    const expenseSlice = Math.min(totalSpend, incomeForPeriod)
+    const remainingSlice = Math.max(0, incomeForPeriod - totalSpend)
+    if (expenseSlice > 0) result.push({ name: 'Expenses', value: expenseSlice, color: overspent ? '#ef4444' : 'var(--color-primary-500)' })
+    if (remainingSlice > 0) result.push({ name: 'Remaining', value: remainingSlice, color: '#10b981' })
+    return result
+  }, [incomeForPeriod, totalSpend, overspent])
+
+  const fmt = (cents: number) => privacyMode ? '••••' : `$${(cents / 100).toFixed(2)}`
   const days = useMemo(() => {
     const s = parseISO(start)
     const e = parseISO(end)
@@ -80,6 +112,81 @@ export function Insights() {
             </Card>
           ))}
         </div>
+
+        {/* Income vs Expenses */}
+        <Card className="p-4">
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Income vs Expenses</h3>
+          <div className="flex flex-col items-center gap-4">
+            <div className="relative" style={{ width: 160, height: 160 }}>
+              <ResponsiveContainer width={160} height={160}>
+                <PieChart>
+                  <Pie
+                    data={incomeExpenseData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={72}
+                    dataKey="value"
+                    startAngle={90}
+                    endAngle={-270}
+                    paddingAngle={incomeExpenseData.length > 1 ? 2 : 0}
+                    strokeWidth={0}
+                  >
+                    {incomeExpenseData.map((entry, i) => (
+                      <Cell key={i} fill={entry.color} />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                {incomeForPeriod === 0 && totalSpend === 0 ? (
+                  <span className="text-xs text-gray-400">No data</span>
+                ) : incomeForPeriod === 0 ? (
+                  <>
+                    <span className="text-xs text-gray-400 mb-0.5">Spent</span>
+                    <span className="text-sm font-bold text-gray-900 dark:text-gray-50">{fmt(totalSpend)}</span>
+                  </>
+                ) : overspent ? (
+                  <>
+                    <span className="text-xs text-red-500 font-semibold">Over by</span>
+                    <span className="text-sm font-bold text-red-500">{fmt(overspentAmt)}</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-2xl font-bold text-gray-900 dark:text-gray-50">{Math.round(spendPct)}%</span>
+                    <span className="text-xs text-gray-400">spent</span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="w-full grid grid-cols-3 gap-2 text-center">
+              <div>
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span className="text-xs text-gray-500">Income</span>
+                </div>
+                <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">{fmt(incomeForPeriod)}</span>
+              </div>
+              <div>
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: overspent ? '#ef4444' : 'var(--color-primary-500)' }} />
+                  <span className="text-xs text-gray-500">Spent</span>
+                </div>
+                <span className={`text-xs font-semibold ${overspent ? 'text-red-500' : 'text-gray-800 dark:text-gray-200'}`}>{fmt(totalSpend)}</span>
+              </div>
+              <div>
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <div className={`w-2 h-2 rounded-full ${overspent ? 'bg-red-500' : 'bg-emerald-500'}`} />
+                  <span className="text-xs text-gray-500">{overspent ? 'Over' : 'Left'}</span>
+                </div>
+                <span className={`text-xs font-semibold ${overspent ? 'text-red-500' : 'text-emerald-600'}`}>
+                  {overspent ? `-${fmt(overspentAmt)}` : fmt(remaining)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </Card>
 
         {/* Spending by Category — Donut */}
         {pieData.length > 0 && (
