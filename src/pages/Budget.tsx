@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Plus, Pencil, Target } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, Cell, ResponsiveContainer, Tooltip } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
 import { useAppStore } from '@/store/app'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Card } from '@/components/ui/Card'
@@ -65,7 +65,7 @@ export function Budget() {
     setEditing(true)
   }
 
-  // Year overview: all 12 months, filtered to those with data
+  // Year overview: stacked bars — withinBudget (green) + overspend (red) + noBudget (gray)
   const yearChartData = useMemo(() => {
     return Array.from({ length: 12 }, (_, i) => {
       const m = i + 1
@@ -76,16 +76,21 @@ export function Budget() {
       const spent = transactions
         .filter((t) => t.type === 'expense' && t.transaction_date.split('T')[0] >= s && t.transaction_date.split('T')[0] <= e)
         .reduce((sum, t) => sum + t.amount, 0)
+      const spentDollars = spent / 100
+      const budgetDollars = b ? b.amount / 100 : null
       return {
         month: MONTH_SHORT[i],
-        budget: b ? b.amount / 100 : 0,
-        spent: spent / 100,
-        overspent: b ? spent > b.amount : false,
+        withinBudget: budgetDollars !== null ? Math.min(spentDollars, budgetDollars) : 0,
+        overspend: budgetDollars !== null ? Math.max(0, spentDollars - budgetDollars) : 0,
+        noBudget: budgetDollars === null ? spentDollars : 0,
+        budgetAmt: budgetDollars ?? 0,
+        totalSpent: spentDollars,
+        hasBudget: budgetDollars !== null,
       }
-    }).filter((d) => d.budget > 0 || d.spent > 0)
+    }).filter((d) => d.withinBudget > 0 || d.overspend > 0 || d.noBudget > 0)
   }, [budgets, transactions, year])
 
-  const overspentCount = yearChartData.filter((d) => d.overspent).length
+  const overspentCount = yearChartData.filter((d) => d.overspend > 0).length
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
@@ -220,24 +225,23 @@ export function Budget() {
 
             <div className="flex items-center gap-4 mt-2 mb-4">
               <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded-sm bg-gray-200 dark:bg-gray-700" />
-                <span className="text-xs text-gray-500">Budget</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'var(--color-primary-500)' }} />
-                <span className="text-xs text-gray-500">Spent</span>
+                <div className="w-3 h-3 rounded-sm bg-emerald-500" />
+                <span className="text-xs text-gray-500">Within budget</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded-sm bg-red-500" />
                 <span className="text-xs text-gray-500">Over budget</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-sm bg-gray-300 dark:bg-gray-600" />
+                <span className="text-xs text-gray-500">No budget</span>
               </div>
             </div>
 
             <ResponsiveContainer width="100%" height={180}>
               <BarChart
                 data={yearChartData}
-                barCategoryGap="20%"
-                barGap={2}
+                barCategoryGap="25%"
                 margin={{ top: 0, right: 0, left: -20, bottom: 0 }}
               >
                 <XAxis dataKey="month" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
@@ -248,23 +252,33 @@ export function Budget() {
                   tickFormatter={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`}
                 />
                 <Tooltip
-                  formatter={(value, name) => [
-                    `$${Number(value).toFixed(0)}`,
-                    name === 'budget' ? 'Budget' : 'Spent',
-                  ]}
-                  contentStyle={{
-                    borderRadius: '12px',
-                    border: 'none',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                    fontSize: '12px',
+                  content={({ active, payload, label }) => {
+                    if (!active || !payload?.length) return null
+                    const d = payload[0]?.payload
+                    if (!d) return null
+                    return (
+                      <div className="bg-white dark:bg-gray-900 rounded-xl p-3 shadow-lg border border-gray-100 dark:border-gray-800">
+                        <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">{label}</p>
+                        {d.hasBudget ? (
+                          <>
+                            <p className="text-xs text-gray-500">Budget: <span className="font-medium text-gray-700 dark:text-gray-300">${d.budgetAmt.toFixed(0)}</span></p>
+                            <p className={`text-xs ${d.overspend > 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+                              Spent: <span className="font-medium">${d.totalSpent.toFixed(0)}</span>
+                            </p>
+                            {d.overspend > 0 && (
+                              <p className="text-xs text-red-500 font-medium">Over by: ${d.overspend.toFixed(0)}</p>
+                            )}
+                          </>
+                        ) : (
+                          <p className="text-xs text-gray-500">Spent: <span className="font-medium text-gray-700 dark:text-gray-300">${d.totalSpent.toFixed(0)}</span></p>
+                        )}
+                      </div>
+                    )
                   }}
                 />
-                <Bar dataKey="budget" fill="#e5e7eb" radius={[2, 2, 0, 0]} name="Budget" />
-                <Bar dataKey="spent" radius={[2, 2, 0, 0]} name="Spent">
-                  {yearChartData.map((d, i) => (
-                    <Cell key={i} fill={d.overspent ? '#ef4444' : 'var(--color-primary-500)'} />
-                  ))}
-                </Bar>
+                <Bar dataKey="noBudget" stackId="a" fill="#d1d5db" radius={[2, 2, 0, 0]} />
+                <Bar dataKey="withinBudget" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
+                <Bar dataKey="overspend" stackId="a" fill="#ef4444" radius={[2, 2, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </Card>
