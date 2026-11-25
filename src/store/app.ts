@@ -37,6 +37,7 @@ interface AppState {
   addPaymentMethod: (pm: PaymentMethod) => void
   removePaymentMethod: (id: string) => void
   setBudgets: (b: Budget[]) => void
+  setBudgetForMonth: (year: number, month: number, amount: number) => void
   setPreferences: (p: UserPreferences) => void
   setPrivacyMode: (val: boolean) => void
   setTheme: (t: 'light' | 'dark' | 'system') => void
@@ -79,6 +80,28 @@ export const useAppStore = create<AppState>()(
       removePaymentMethod: (id) =>
         set((s) => ({ paymentMethods: s.paymentMethods.filter((p) => p.id !== id) })),
       setBudgets: (budgets) => set({ budgets }),
+      setBudgetForMonth: (year, month, amount) =>
+        set((s) => {
+          const existing = s.budgets.find(
+            (b) => !b.category_id && b.period === 'monthly' && b.year === year && b.month === month
+          )
+          if (existing) {
+            return { budgets: s.budgets.map((b) => b.id === existing.id ? { ...b, amount, updated_at: new Date().toISOString() } : b) }
+          }
+          return {
+            budgets: [...s.budgets, {
+              id: `budget-${year}-${month}-${Date.now()}`,
+              user_id: s.user?.id ?? 'demo-user',
+              category_id: null,
+              amount,
+              period: 'monthly' as const,
+              year,
+              month,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            }],
+          }
+        }),
       setPreferences: (preferences) => set({ preferences }),
       setPrivacyMode: (privacyMode) => set({ privacyMode }),
       setTheme: (theme) => set({ theme }),
@@ -122,6 +145,8 @@ export const useAppStore = create<AppState>()(
         theme: s.theme,
         accentColor: s.accentColor,
         isDemoMode: s.isDemoMode,
+        budgets: s.isDemoMode ? s.budgets : [],
+        paymentMethods: s.isDemoMode ? s.paymentMethods : [],
       }),
     }
   )

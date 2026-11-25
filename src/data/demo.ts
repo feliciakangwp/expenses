@@ -341,16 +341,4 @@ export function enrichDemoTransactions(transactions: Transaction[]): Transaction
   }))
 }
 
-export const DEMO_BUDGETS: Budget[] = [
-  {
-    id: makeId(400),
-    user_id: 'demo-user',
-    category_id: null,
-    amount: 300000,
-    period: 'monthly',
-    year: today.getFullYear(),
-    month: today.getMonth() + 1,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-]
+export const DEMO_BUDGETS: Budget[] = []
