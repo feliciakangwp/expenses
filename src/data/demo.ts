@@ -1,6 +1,6 @@
 import type { Transaction, Category, PaymentMethod, Budget } from '@/types'
 import { DEFAULT_CATEGORIES } from './categories'
-import { subDays, startOfMonth, format } from 'date-fns'
+import { subDays, format } from 'date-fns'
 
 // Generate stable demo IDs
 const makeId = (n: number) => `demo-${n.toString().padStart(8, '0')}`
@@ -303,30 +303,6 @@ export const DEMO_TRANSACTIONS: Transaction[] = [
     recurring_expense_id: null,
     notes: null,
     transaction_date: format(subDays(today, 10), "yyyy-MM-dd'T'10:30:00"),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  // Income
-  {
-    id: makeId(320),
-    user_id: 'demo-user',
-    type: 'income',
-    category_id: getCatId('Salary'),
-    subcategory_id: null,
-    amount: 700000,
-    currency: 'SGD',
-    original_amount: null,
-    original_currency: null,
-    exchange_rate: null,
-    description: 'Monthly salary',
-    merchant: null,
-    payment_method_id: null,
-    is_needs: null,
-    is_fixed: null,
-    is_recurring: true,
-    recurring_expense_id: null,
-    notes: null,
-    transaction_date: format(startOfMonth(today), "yyyy-MM-dd'T'09:00:00"),
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },

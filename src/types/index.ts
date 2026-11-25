@@ -130,6 +130,18 @@ export interface RecurringExpense {
   payment_method?: PaymentMethod
 }
 
+export interface Investment {
+  id: string
+  user_id: string
+  ticker: string
+  quantity: number
+  buy_price: number
+  sell_price: number | null
+  buy_date: string
+  created_at: string
+  updated_at: string
+}
+
 export interface DashboardStats {
   today: number
   week: number

@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { User } from '@supabase/supabase-js'
-import type { Transaction, Category, PaymentMethod, UserPreferences, Budget } from '@/types'
+import type { Transaction, Category, PaymentMethod, UserPreferences, Budget, Investment } from '@/types'
 import { DEMO_CATEGORIES, DEMO_TRANSACTIONS, DEMO_PAYMENT_METHODS, DEMO_BUDGETS, enrichDemoTransactions } from '@/data/demo'
 import { isSupabaseConfigured } from '@/lib/supabase'
 
@@ -17,6 +17,7 @@ interface AppState {
   categories: Category[]
   paymentMethods: PaymentMethod[]
   budgets: Budget[]
+  investments: Investment[]
   preferences: UserPreferences | null
 
   // UI
@@ -38,6 +39,9 @@ interface AppState {
   removePaymentMethod: (id: string) => void
   setBudgets: (b: Budget[]) => void
   setBudgetForMonth: (year: number, month: number, amount: number) => void
+  addInvestment: (inv: Investment) => void
+  updateInvestment: (inv: Investment) => void
+  removeInvestment: (id: string) => void
   setPreferences: (p: UserPreferences) => void
   setPrivacyMode: (val: boolean) => void
   setTheme: (t: 'light' | 'dark' | 'system') => void
@@ -56,6 +60,7 @@ export const useAppStore = create<AppState>()(
       categories: [],
       paymentMethods: [],
       budgets: [],
+      investments: [],
       preferences: null,
       privacyMode: false,
       theme: 'system',
@@ -80,6 +85,9 @@ export const useAppStore = create<AppState>()(
       removePaymentMethod: (id) =>
         set((s) => ({ paymentMethods: s.paymentMethods.filter((p) => p.id !== id) })),
       setBudgets: (budgets) => set({ budgets }),
+      addInvestment: (inv) => set((s) => ({ investments: [...s.investments, inv] })),
+      updateInvestment: (inv) => set((s) => ({ investments: s.investments.map((i) => (i.id === inv.id ? inv : i)) })),
+      removeInvestment: (id) => set((s) => ({ investments: s.investments.filter((i) => i.id !== id) })),
       setBudgetForMonth: (year, month, amount) =>
         set((s) => {
           const existing = s.budgets.find(
@@ -135,6 +143,7 @@ export const useAppStore = create<AppState>()(
           categories: [],
           paymentMethods: [],
           budgets: [],
+          investments: [],
           preferences: null,
         }),
     }),
@@ -146,6 +155,7 @@ export const useAppStore = create<AppState>()(
         accentColor: s.accentColor,
         isDemoMode: s.isDemoMode,
         budgets: s.isDemoMode ? s.budgets : [],
+        investments: s.isDemoMode ? s.investments : [],
         paymentMethods: s.isDemoMode ? s.paymentMethods : [],
       }),
     }
