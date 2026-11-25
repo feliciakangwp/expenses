@@ -60,7 +60,7 @@ export function useData() {
       currency?: string
       paymentMethodId: string | null
       description: string
-      merchant: string
+      merchant?: string
       transactionDate: string
       notes: string
       isNeeds: boolean | null
@@ -78,7 +78,7 @@ export function useData() {
         original_currency: null,
         exchange_rate: null,
         description: data.description || null,
-        merchant: data.merchant || null,
+        merchant: data.merchant ?? null,
         payment_method_id: data.paymentMethodId,
         is_needs: data.isNeeds,
         is_fixed: null,

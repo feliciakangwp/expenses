@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronDown, ChevronUp, Check, CreditCard, Calendar, Tag, MessageSquare, Store } from 'lucide-react'
+import { ChevronDown, ChevronUp, Check, CreditCard, Calendar, Tag, MessageSquare, Plus } from 'lucide-react'
 import type { Category, PaymentMethod, Subcategory } from '@/types'
 import { NumericKeypad } from './NumericKeypad'
 import { CategoryPicker } from './CategoryPicker'
@@ -21,7 +21,6 @@ interface QuickExpenseEntryProps {
     amount: number
     paymentMethodId: string | null
     description: string
-    merchant: string
     transactionDate: string
     notes: string
     isNeeds: boolean | null
@@ -41,7 +40,6 @@ export function QuickExpenseEntry({
   const [paymentMethodId, setPaymentMethodId] = useState<string | null>(defaultPaymentMethodId ?? null)
   const [subcategoryId, setSubcategoryId] = useState<string | null>(null)
   const [description, setDescription] = useState('')
-  const [merchant, setMerchant] = useState('')
   const [transactionDate, setTransactionDate] = useState(format(new Date(), "yyyy-MM-dd"))
   const [notes, setNotes] = useState('')
   const [showMore, setShowMore] = useState(false)
@@ -61,7 +59,6 @@ export function QuickExpenseEntry({
         amount: cents,
         paymentMethodId,
         description,
-        merchant,
         transactionDate: `${transactionDate}T${format(new Date(), 'HH:mm:ss')}`,
         notes,
         isNeeds: selectedCategory.is_needs,
@@ -71,7 +68,6 @@ export function QuickExpenseEntry({
         setSaved(false)
         setAmount('0')
         setDescription('')
-        setMerchant('')
         setNotes('')
         setSubcategoryId(null)
         setTransactionDate(format(new Date(), "yyyy-MM-dd"))
@@ -176,20 +172,9 @@ export function QuickExpenseEntry({
                   />
                 </div>
 
-                {/* Merchant */}
-                <div className="relative">
-                  <Store size={15} className="absolute left-3 top-3 text-gray-400" />
-                  <input
-                    value={merchant}
-                    onChange={(e) => setMerchant(e.target.value)}
-                    placeholder="Merchant"
-                    className="w-full rounded-xl bg-gray-50 dark:bg-gray-800 pl-9 pr-3 py-2.5 text-sm text-gray-900 dark:text-gray-50 placeholder-gray-400 outline-none focus:ring-2 focus:ring-primary-500/50"
-                  />
-                </div>
-
                 {/* Payment Method */}
                 <div>
-                  <label className="mb-1 flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+                  <label className="mb-2 flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400">
                     <CreditCard size={12} />
                     Payment method
                   </label>
@@ -208,6 +193,13 @@ export function QuickExpenseEntry({
                         {pm.name}
                       </button>
                     ))}
+                    <button
+                      className="flex items-center gap-1 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 px-3 py-1.5 text-sm font-medium text-gray-400 dark:text-gray-500 transition-all hover:border-primary-400 hover:text-primary-500"
+                      onClick={() => {}}
+                    >
+                      <Plus size={13} />
+                      Add Card
+                    </button>
                   </div>
                 </div>
 

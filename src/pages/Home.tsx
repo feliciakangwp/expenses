@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Eye, EyeOff, Bell } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { Eye, EyeOff } from 'lucide-react'
 import { useAppStore } from '@/store/app'
 import { useData } from '@/hooks/useData'
 import { useStats } from '@/hooks/useStats'
@@ -37,18 +36,30 @@ export function Home() {
     return map
   }, [categories])
 
-  // Recent category IDs (most used)
+  // Category IDs sorted by usage frequency (most used first)
   const recentCategoryIds = useMemo(() => {
     const expenseTx = transactions.filter((t) => t.type === 'expense')
     const freq = new Map<string, number>()
-    for (const t of expenseTx.slice(0, 50)) {
+    for (const t of expenseTx.slice(0, 100)) {
       freq.set(t.category_id, (freq.get(t.category_id) ?? 0) + 1)
     }
     return [...freq.entries()]
       .sort((a, b) => b[1] - a[1])
       .map(([id]) => id)
-      .slice(0, 8)
   }, [transactions])
+
+  // Payment methods sorted by usage frequency (most used first)
+  const sortedPaymentMethods = useMemo(() => {
+    const freq = new Map<string, number>()
+    for (const t of transactions) {
+      if (t.payment_method_id) {
+        freq.set(t.payment_method_id, (freq.get(t.payment_method_id) ?? 0) + 1)
+      }
+    }
+    return [...paymentMethods]
+      .filter((p) => !p.is_archived)
+      .sort((a, b) => (freq.get(b.id) ?? 0) - (freq.get(a.id) ?? 0))
+  }, [transactions, paymentMethods])
 
   const recentTransactions = useMemo(
     () => transactions.slice(0, RECENT_LIMIT),
@@ -84,7 +95,6 @@ export function Home() {
         amount: data.amount,
         paymentMethodId: data.paymentMethodId,
         description: data.description,
-        merchant: data.merchant,
         transactionDate: data.transactionDate,
         notes: data.notes,
         isNeeds: data.isNeeds,
@@ -217,7 +227,7 @@ export function Home() {
               <QuickExpenseEntry
                 categories={categories}
                 subcategories={subcategoryMap}
-                paymentMethods={paymentMethods}
+                paymentMethods={sortedPaymentMethods}
                 defaultPaymentMethodId={preferences?.default_payment_method_id}
                 recentCategoryIds={recentCategoryIds}
                 onSave={handleSave}
@@ -234,7 +244,7 @@ export function Home() {
               <QuickExpenseEntry
                 categories={categories}
                 subcategories={subcategoryMap}
-                paymentMethods={paymentMethods}
+                paymentMethods={sortedPaymentMethods}
                 defaultPaymentMethodId={preferences?.default_payment_method_id}
                 recentCategoryIds={recentCategoryIds}
                 onSave={handleSave}
