@@ -87,8 +87,8 @@ export function Insights() {
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
               Spending by Category
             </h3>
-            <div className="flex items-center gap-4">
-              <ResponsiveContainer width="100%" height={160} className="max-w-[200px] flex-shrink-0">
+            <div className="flex flex-col items-center gap-4">
+              <ResponsiveContainer width={160} height={160}>
                 <PieChart>
                   <Pie
                     data={pieData}
@@ -105,14 +105,14 @@ export function Insights() {
                   </Pie>
                 </PieChart>
               </ResponsiveContainer>
-              <div className="flex-1 flex flex-col gap-2">
+              <div className="w-full grid grid-cols-2 gap-x-4 gap-y-2">
                 {pieData.slice(0, 6).map((d) => {
                   const cs = catSpending.find((x) => x.category.name === d.name)
                   return (
-                    <div key={d.name} className="flex items-center gap-2">
+                    <div key={d.name} className="flex items-center gap-2 min-w-0">
                       <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: d.color }} />
-                      <span className="text-xs text-gray-600 dark:text-gray-400 flex-1 truncate">{d.name}</span>
-                      <span className="text-xs font-medium text-gray-800 dark:text-gray-200">
+                      <span className="text-xs text-gray-600 dark:text-gray-400 truncate">{d.name}</span>
+                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300 flex-shrink-0 ml-auto">
                         {cs ? `${cs.percentage.toFixed(0)}%` : ''}
                       </span>
                     </div>
@@ -138,7 +138,7 @@ export function Insights() {
                   formatter={(value) => [privacyMode ? '••••' : `$${Number(value).toFixed(2)}`, 'Amount']}
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
                 />
-                <Bar dataKey="amount" fill="#7c3aed" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="amount" fill="var(--color-primary-600)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </Card>
