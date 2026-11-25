@@ -384,7 +384,7 @@ export function Home() {
         </div>
 
         {/* Right: Top Categories + Recent */}
-        <div className="mt-5 md:mt-0 flex flex-col gap-4">
+        <div className="mt-5 md:mt-0 flex flex-col gap-4 pb-24 md:pb-10">
           {/* Budget bar on desktop */}
           {stats.monthBudget && (
             <Card className="hidden md:block p-4">
