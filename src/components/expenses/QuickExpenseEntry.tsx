@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronDown, ChevronUp, Check, CreditCard, Calendar, Tag, MessageSquare, Plus } from 'lucide-react'
+import { ChevronDown, ChevronUp, Check, CreditCard, Calendar, MessageSquare, Plus } from 'lucide-react'
 import type { Category, PaymentMethod, Subcategory } from '@/types'
 import { NumericKeypad } from './NumericKeypad'
 import { CategoryPicker } from './CategoryPicker'
@@ -22,7 +22,6 @@ interface QuickExpenseEntryProps {
     paymentMethodId: string | null
     description: string
     transactionDate: string
-    notes: string
     isNeeds: boolean | null
   }) => Promise<void>
 }
@@ -41,7 +40,6 @@ export function QuickExpenseEntry({
   const [subcategoryId, setSubcategoryId] = useState<string | null>(null)
   const [description, setDescription] = useState('')
   const [transactionDate, setTransactionDate] = useState(format(new Date(), "yyyy-MM-dd"))
-  const [notes, setNotes] = useState('')
   const [showMore, setShowMore] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -60,7 +58,6 @@ export function QuickExpenseEntry({
         paymentMethodId,
         description,
         transactionDate: `${transactionDate}T${format(new Date(), 'HH:mm:ss')}`,
-        notes,
         isNeeds: selectedCategory.is_needs,
       })
       setSaved(true)
@@ -68,7 +65,6 @@ export function QuickExpenseEntry({
         setSaved(false)
         setAmount('0')
         setDescription('')
-        setNotes('')
         setSubcategoryId(null)
         setTransactionDate(format(new Date(), "yyyy-MM-dd"))
         setShowMore(false)
@@ -79,6 +75,7 @@ export function QuickExpenseEntry({
   }
 
   const catSubcats = selectedCategory ? (subcategories[selectedCategory.id] ?? []) : []
+  const visiblePaymentMethods = paymentMethods.filter((p) => !p.is_archived)
 
   return (
     <div className="flex flex-col gap-4">
@@ -115,6 +112,33 @@ export function QuickExpenseEntry({
 
       {/* Keypad */}
       <NumericKeypad value={amount} onChange={setAmount} />
+
+      {/* Payment Method — always visible */}
+      <div className="px-5">
+        <label className="mb-2 flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+          <CreditCard size={12} />
+          Payment method
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {visiblePaymentMethods.map((pm) => (
+            <button
+              key={pm.id}
+              onClick={() => setPaymentMethodId(pm.id === paymentMethodId ? null : pm.id)}
+              className={cn(
+                'rounded-xl px-3 py-1.5 text-sm font-medium transition-all',
+                paymentMethodId === pm.id
+                  ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+              )}
+            >
+              {pm.name}
+            </button>
+          ))}
+          {visiblePaymentMethods.length === 0 && (
+            <p className="text-xs text-gray-400 dark:text-gray-500 py-1">No cards added — add one in Settings</p>
+          )}
+        </div>
+      </div>
 
       {/* More Details Toggle */}
       <div className="px-5">
@@ -172,37 +196,6 @@ export function QuickExpenseEntry({
                   />
                 </div>
 
-                {/* Payment Method */}
-                <div>
-                  <label className="mb-2 flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400">
-                    <CreditCard size={12} />
-                    Payment method
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {paymentMethods.filter((p) => !p.is_archived).map((pm) => (
-                      <button
-                        key={pm.id}
-                        onClick={() => setPaymentMethodId(pm.id === paymentMethodId ? null : pm.id)}
-                        className={cn(
-                          'rounded-xl px-3 py-1.5 text-sm font-medium transition-all',
-                          paymentMethodId === pm.id
-                            ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300'
-                            : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
-                        )}
-                      >
-                        {pm.name}
-                      </button>
-                    ))}
-                    <button
-                      className="flex items-center gap-1 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 px-3 py-1.5 text-sm font-medium text-gray-400 dark:text-gray-500 transition-all hover:border-primary-400 hover:text-primary-500"
-                      onClick={() => {}}
-                    >
-                      <Plus size={13} />
-                      Add Card
-                    </button>
-                  </div>
-                </div>
-
                 {/* Date */}
                 <div className="relative">
                   <Calendar size={15} className="absolute left-3 top-3 text-gray-400" />
@@ -211,17 +204,6 @@ export function QuickExpenseEntry({
                     value={transactionDate}
                     onChange={(e) => setTransactionDate(e.target.value)}
                     className="w-full rounded-xl bg-gray-50 dark:bg-gray-800 pl-9 pr-3 py-2.5 text-sm text-gray-900 dark:text-gray-50 outline-none focus:ring-2 focus:ring-primary-500/50"
-                  />
-                </div>
-
-                {/* Notes */}
-                <div className="relative">
-                  <Tag size={15} className="absolute left-3 top-3 text-gray-400" />
-                  <input
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Notes"
-                    className="w-full rounded-xl bg-gray-50 dark:bg-gray-800 pl-9 pr-3 py-2.5 text-sm text-gray-900 dark:text-gray-50 placeholder-gray-400 outline-none focus:ring-2 focus:ring-primary-500/50"
                   />
                 </div>
               </div>

@@ -6,14 +6,19 @@ import { Card } from '@/components/ui/Card'
 import { AmountDisplay } from '@/components/ui/AmountDisplay'
 import { CategoryIcon } from '@/components/ui/CategoryIcon'
 import { Button } from '@/components/ui/Button'
-import { getMonthRange } from '@/lib/utils'
+import { PeriodSelector, periodToRange } from '@/components/ui/PeriodSelector'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 
 export function Budget() {
   const { transactions, budgets, categories } = useAppStore()
 
-  const { start: monthStart, end: monthEnd } = getMonthRange()
+  const now = new Date()
+  const [year, setYear] = useState(now.getFullYear())
+  const [month, setMonth] = useState(now.getMonth() + 1)
+
+  const { start: monthStart, end: monthEnd } = periodToRange(year, month)
+  const selectedDate = new Date(year, month - 1, 1)
 
   const monthExpenses = useMemo(() => {
     return transactions.filter((t) => {
@@ -25,12 +30,13 @@ export function Budget() {
 
   const totalSpent = monthExpenses.reduce((s, t) => s + t.amount, 0)
 
-  const now = new Date()
-  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
-  const daysRemaining = daysInMonth - now.getDate() + 1
+  const daysInMonth = new Date(year, month, 0).getDate()
+  const daysRemaining = year === now.getFullYear() && month === now.getMonth() + 1
+    ? daysInMonth - now.getDate() + 1
+    : 0
 
   const overallBudget = budgets.find(
-    (b) => !b.category_id && b.period === 'monthly' && b.year === now.getFullYear() && b.month === now.getMonth() + 1
+    (b) => !b.category_id && b.period === 'monthly' && b.year === year && b.month === month
   )
 
   // Category spending
@@ -45,7 +51,9 @@ export function Budget() {
   const categoryBudgets = budgets.filter((b) => b.category_id)
 
   // Projected spend
-  const daysElapsed = now.getDate()
+  const daysElapsed = year === now.getFullYear() && month === now.getMonth() + 1
+    ? now.getDate()
+    : daysInMonth
   const projectedSpend = daysElapsed > 0 ? (totalSpent / daysElapsed) * daysInMonth : 0
 
   function BudgetBar({ spent, budget, label }: { spent: number; budget: number; label: string }) {
@@ -86,7 +94,14 @@ export function Budget() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <PageHeader title="Budget" subtitle={format(now, 'MMMM yyyy')} />
+      <PageHeader title="Budget" subtitle={format(selectedDate, 'MMMM yyyy')} />
+
+      <PeriodSelector
+        transactions={transactions}
+        year={year}
+        month={month}
+        onChange={(y, m) => { setYear(y); setMonth(m) }}
+      />
 
       <div className="px-5 flex flex-col gap-4">
         {/* Overall Budget */}

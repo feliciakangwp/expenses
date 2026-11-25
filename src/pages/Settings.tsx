@@ -1,17 +1,23 @@
 import { useState } from 'react'
-import { Moon, Sun, Monitor, Eye, EyeOff, LogOut, User, CreditCard, ChevronRight, Info, Shield } from 'lucide-react'
+import { Moon, Sun, Monitor, Eye, EyeOff, LogOut, User, CreditCard, Trash2, Info, Shield, ChevronRight } from 'lucide-react'
 import { useAppStore } from '@/store/app'
+import type { AccentColor } from '@/store/app'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { useAuth } from '@/hooks/useAuth'
-import { cn } from '@/lib/utils'
+import { cn, generateId } from '@/lib/utils'
 import { isSupabaseConfigured } from '@/lib/supabase'
 
 export function Settings() {
-  const { user, isDemoMode, theme, setTheme, privacyMode, setPrivacyMode } = useAppStore()
+  const {
+    user, isDemoMode, theme, setTheme, privacyMode, setPrivacyMode,
+    accentColor, setAccentColor, paymentMethods, addPaymentMethod, removePaymentMethod,
+  } = useAppStore()
   const { signOut } = useAuth()
   const [signingOut, setSigningOut] = useState(false)
+  const [showAddCard, setShowAddCard] = useState(false)
+  const [newCardName, setNewCardName] = useState('')
 
   const handleSignOut = async () => {
     setSigningOut(true)
@@ -22,10 +28,36 @@ export function Settings() {
     }
   }
 
+  const handleAddCard = () => {
+    if (!newCardName.trim()) return
+    addPaymentMethod({
+      id: generateId(),
+      user_id: user?.id ?? 'demo-user',
+      name: newCardName.trim(),
+      icon: 'credit-card',
+      sort_order: paymentMethods.length + 1,
+      is_default: false,
+      is_archived: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    setNewCardName('')
+    setShowAddCard(false)
+  }
+
   const THEMES = [
     { value: 'light' as const, label: 'Light', icon: Sun },
     { value: 'dark' as const, label: 'Dark', icon: Moon },
     { value: 'system' as const, label: 'System', icon: Monitor },
+  ]
+
+  const ACCENT_COLORS = [
+    { value: 'purple' as AccentColor, bg: 'bg-violet-600', label: 'Purple' },
+    { value: 'red' as AccentColor,    bg: 'bg-red-600',    label: 'Red' },
+    { value: 'blue' as AccentColor,   bg: 'bg-blue-600',   label: 'Blue' },
+    { value: 'green' as AccentColor,  bg: 'bg-green-600',  label: 'Green' },
+    { value: 'yellow' as AccentColor, bg: 'bg-amber-500',  label: 'Yellow' },
+    { value: 'orange' as AccentColor, bg: 'bg-orange-600', label: 'Orange' },
   ]
 
   return (
@@ -100,12 +132,76 @@ export function Settings() {
           </div>
         </Card>
 
+        {/* Accent Color */}
+        <Card className="p-4">
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Accent Color</h3>
+          <div className="grid grid-cols-6 gap-3">
+            {ACCENT_COLORS.map(({ value, bg, label }) => (
+              <button
+                key={value}
+                onClick={() => setAccentColor(value)}
+                title={label}
+                className={cn(
+                  'h-9 w-full rounded-xl transition-all',
+                  bg,
+                  accentColor === value && 'ring-2 ring-offset-2 ring-gray-400 dark:ring-gray-500 scale-110'
+                )}
+              />
+            ))}
+          </div>
+        </Card>
+
+        {/* Payment Methods */}
+        <Card>
+          <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Payment Methods</h3>
+            <button
+              onClick={() => setShowAddCard(true)}
+              className="text-xs font-medium text-primary-600 dark:text-primary-400"
+            >
+              + Add
+            </button>
+          </div>
+          {paymentMethods.filter(p => !p.is_archived).length === 0 ? (
+            <div className="px-4 py-6 text-center text-sm text-gray-400">No cards added yet</div>
+          ) : (
+            <div className="divide-y divide-gray-50 dark:divide-gray-800/50">
+              {paymentMethods.filter(p => !p.is_archived).map((pm) => (
+                <div key={pm.id} className="flex items-center gap-3 px-4 py-3">
+                  <CreditCard size={16} className="text-gray-400" />
+                  <span className="flex-1 text-sm text-gray-800 dark:text-gray-200">{pm.name}</span>
+                  <button
+                    onClick={() => removePaymentMethod(pm.id)}
+                    className="text-gray-300 dark:text-gray-600 hover:text-red-500 transition-colors"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {showAddCard && (
+            <div className="px-4 pb-4 pt-2 border-t border-gray-100 dark:border-gray-800">
+              <div className="flex gap-2">
+                <input
+                  value={newCardName}
+                  onChange={e => setNewCardName(e.target.value)}
+                  placeholder="Card name (e.g. DBS Visa)"
+                  onKeyDown={e => e.key === 'Enter' && handleAddCard()}
+                  className="flex-1 rounded-xl bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500/50"
+                  autoFocus
+                />
+                <Button size="sm" onClick={handleAddCard} disabled={!newCardName.trim()}>Add</Button>
+              </div>
+            </div>
+          )}
+        </Card>
+
         {/* Data */}
         {!isDemoMode && (
           <Card>
             <div className="divide-y divide-gray-50 dark:divide-gray-800/50">
               {[
-                { icon: CreditCard, label: 'Payment Methods', action: () => {} },
                 { icon: Shield, label: 'Security', action: () => {} },
               ].map(({ icon: Icon, label, action }) => (
                 <button

@@ -6,48 +6,17 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { AmountDisplay } from '@/components/ui/AmountDisplay'
 import { CategoryIcon } from '@/components/ui/CategoryIcon'
-import { getMonthRange, formatDate } from '@/lib/utils'
-import { format, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, parseISO } from 'date-fns'
-import { formatCurrency } from '@/lib/utils'
-
-type Period = 'week' | 'month' | '3months' | 'year'
-
-const PERIODS: { value: Period; label: string }[] = [
-  { value: 'week', label: 'Week' },
-  { value: 'month', label: 'Month' },
-  { value: '3months', label: '3 Months' },
-  { value: 'year', label: 'Year' },
-]
-
-function getPeriodRange(period: Period): { start: string; end: string } {
-  const now = new Date()
-  if (period === 'week') {
-    const d = new Date(now)
-    d.setDate(d.getDate() - 6)
-    return {
-      start: format(d, 'yyyy-MM-dd'),
-      end: format(now, 'yyyy-MM-dd'),
-    }
-  }
-  if (period === 'month') return getMonthRange()
-  if (period === '3months') {
-    const d = subMonths(now, 2)
-    return {
-      start: format(startOfMonth(d), 'yyyy-MM-dd'),
-      end: format(endOfMonth(now), 'yyyy-MM-dd'),
-    }
-  }
-  return {
-    start: format(new Date(now.getFullYear(), 0, 1), 'yyyy-MM-dd'),
-    end: format(new Date(now.getFullYear(), 11, 31), 'yyyy-MM-dd'),
-  }
-}
+import { PeriodSelector, periodToRange } from '@/components/ui/PeriodSelector'
+import { eachDayOfInterval, parseISO } from 'date-fns'
+import { format } from 'date-fns'
 
 export function Insights() {
   const { transactions, privacyMode } = useAppStore()
-  const [period, setPeriod] = useState<Period>('month')
+  const now = new Date()
+  const [year, setYear] = useState(now.getFullYear())
+  const [month, setMonth] = useState(now.getMonth() + 1)
 
-  const { start, end } = getPeriodRange(period)
+  const { start, end } = periodToRange(year, month)
   const catSpending = useCategorySpending(start, end)
 
   const expenses = useMemo(() => {
@@ -91,22 +60,12 @@ export function Insights() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <PageHeader title="Insights" />
 
-      {/* Period Selector */}
-      <div className="px-5 mb-4 flex gap-2">
-        {PERIODS.map(({ value, label }) => (
-          <button
-            key={value}
-            onClick={() => setPeriod(value)}
-            className={`rounded-xl px-3 py-1.5 text-xs font-medium transition-all ${
-              period === value
-                ? 'bg-primary-600 text-white'
-                : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <PeriodSelector
+        transactions={transactions}
+        year={year}
+        month={month}
+        onChange={(y, m) => { setYear(y); setMonth(m) }}
+      />
 
       <div className="px-5 flex flex-col gap-4">
         {/* Summary Stats */}

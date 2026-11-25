@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Search, Filter, Download, X } from 'lucide-react'
+import { Search, Download, X } from 'lucide-react'
 import { useAppStore } from '@/store/app'
 import { useData } from '@/hooks/useData'
 import { TransactionItem } from '@/components/expenses/TransactionItem'
@@ -7,23 +7,31 @@ import { TransactionDetail } from '@/components/expenses/TransactionDetail'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Sheet } from '@/components/ui/Sheet'
 import { AmountDisplay } from '@/components/ui/AmountDisplay'
+import { PeriodSelector, periodToRange } from '@/components/ui/PeriodSelector'
 import { useToast } from '@/components/ui/Toast'
 import type { Transaction } from '@/types'
 import { formatDate } from '@/lib/utils'
 import { groupTransactionsByDate } from '@/lib/utils'
-import { format, parseISO } from 'date-fns'
+import { format } from 'date-fns'
 
 export function Transactions() {
-  const { transactions, categories } = useAppStore()
+  const { transactions } = useAppStore()
   const { removeTransaction } = useData()
   const { toast } = useToast()
 
+  const now = new Date()
+  const [year, setYear] = useState(now.getFullYear())
+  const [month, setMonth] = useState(now.getMonth() + 1)
   const [search, setSearch] = useState('')
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null)
   const [filterType, setFilterType] = useState<string>('all')
 
+  const { start: periodStart, end: periodEnd } = periodToRange(year, month)
+
   const filtered = useMemo(() => {
     return transactions.filter((t) => {
+      const dateStr = t.transaction_date.split('T')[0]
+      if (dateStr < periodStart || dateStr > periodEnd) return false
       if (filterType !== 'all' && t.type !== filterType) return false
       if (search) {
         const q = search.toLowerCase()
@@ -34,7 +42,7 @@ export function Transactions() {
       }
       return true
     })
-  }, [transactions, search, filterType])
+  }, [transactions, periodStart, periodEnd, search, filterType])
 
   const grouped = useMemo(() => {
     return groupTransactionsByDate(filtered)
@@ -104,6 +112,13 @@ export function Transactions() {
             <Download size={16} />
           </button>
         }
+      />
+
+      <PeriodSelector
+        transactions={transactions}
+        year={year}
+        month={month}
+        onChange={(y, m) => { setYear(y); setMonth(m) }}
       />
 
       {/* Search */}

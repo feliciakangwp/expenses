@@ -4,18 +4,14 @@ import { useAppStore } from '@/store/app'
 import { useData } from '@/hooks/useData'
 import { useStats } from '@/hooks/useStats'
 import { QuickExpenseEntry } from '@/components/expenses/QuickExpenseEntry'
-import { TransactionItem } from '@/components/expenses/TransactionItem'
 import { TransactionDetail } from '@/components/expenses/TransactionDetail'
 import { CategoryIcon } from '@/components/ui/CategoryIcon'
 import { AmountDisplay } from '@/components/ui/AmountDisplay'
 import { Card } from '@/components/ui/Card'
 import { Sheet } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
-import type { Transaction, Subcategory, Category } from '@/types'
-import { formatDate } from '@/lib/utils'
+import type { Transaction, Subcategory } from '@/types'
 import { getMonthRange } from '@/lib/utils'
-
-const RECENT_LIMIT = 5
 
 export function Home() {
   const {
@@ -27,7 +23,6 @@ export function Home() {
   const { toast } = useToast()
 
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null)
-  const [showEntry, setShowEntry] = useState(false)
 
   // Build subcategory map
   const subcategoryMap = useMemo(() => {
@@ -61,11 +56,6 @@ export function Home() {
       .sort((a, b) => (freq.get(b.id) ?? 0) - (freq.get(a.id) ?? 0))
   }, [transactions, paymentMethods])
 
-  const recentTransactions = useMemo(
-    () => transactions.slice(0, RECENT_LIMIT),
-    [transactions]
-  )
-
   const { start: monthStart, end: monthEnd } = getMonthRange()
   const topCategories = useMemo(() => {
     const expenses = transactions.filter((t) => {
@@ -96,7 +86,7 @@ export function Home() {
         paymentMethodId: data.paymentMethodId,
         description: data.description,
         transactionDate: data.transactionDate,
-        notes: data.notes,
+        notes: '',
         isNeeds: data.isNeeds,
         type: 'expense',
       })
@@ -121,7 +111,7 @@ export function Home() {
   const greeting = now.getHours() < 12 ? 'Good morning' : now.getHours() < 18 ? 'Good afternoon' : 'Good evening'
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen bg-primary-700 md:bg-gray-50 dark:bg-gray-950">
       {/* Mobile Header (hidden on desktop) */}
       <div className="md:hidden bg-gradient-to-br from-primary-600 to-primary-800 px-5 pt-14 pb-6 safe-area-inset-top">
         <div className="flex items-center justify-between mb-5">
@@ -305,25 +295,6 @@ export function Home() {
             </div>
           )}
 
-          {/* Recent Transactions */}
-          {recentTransactions.length > 0 && (
-            <div className="md:mt-0">
-              <div className="flex items-center justify-between px-5 md:px-0 mb-3">
-                <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Recent</h2>
-              </div>
-              <Card>
-                <div className="divide-y divide-gray-50 dark:divide-gray-800/50">
-                  {recentTransactions.map((tx) => (
-                    <TransactionItem
-                      key={tx.id}
-                      transaction={tx}
-                      onClick={() => setSelectedTx(tx)}
-                    />
-                  ))}
-                </div>
-              </Card>
-            </div>
-          )}
         </div>
       </div>
 
@@ -338,6 +309,7 @@ export function Home() {
             transaction={selectedTx}
             onDelete={() => {
               removeTransaction(selectedTx.id)
+              setSelectedTx(null)
               toast('Transaction deleted', {
                 type: 'info',
                 action: {
