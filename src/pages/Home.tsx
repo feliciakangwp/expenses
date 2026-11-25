@@ -268,7 +268,7 @@ export function Home() {
 
           {/* Top Categories */}
           {topCategories.length > 0 && (
-            <div className="px-5 md:px-0">
+            <Card className="mx-4 p-4 md:mx-0">
               <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                 Top categories this month
               </h2>
@@ -295,7 +295,7 @@ export function Home() {
                   )
                 })}
               </div>
-            </div>
+            </Card>
           )}
 
         </div>
