@@ -120,6 +120,28 @@ function AddIncomeSheet({ open, onClose, onSave }: { open: boolean; onClose: () 
 
 // ─── Investment Add/Edit Form ─────────────────────────────────────────────────
 
+type InvType = 'stock' | 'options'
+
+function PriceInput({ label, value, onChange, placeholder = '0.00' }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{label}</label>
+      <div className="relative">
+        <span className="absolute left-3 top-2.5 text-gray-400 text-sm">$</span>
+        <input
+          type="number"
+          min="0"
+          step="any"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="w-full rounded-xl bg-gray-50 dark:bg-gray-800 pl-6 pr-3 py-2.5 text-sm text-gray-900 dark:text-gray-50 outline-none focus:ring-2 focus:ring-primary-500/50"
+        />
+      </div>
+    </div>
+  )
+}
+
 function AddInvestmentSheet({
   open,
   onClose,
@@ -133,24 +155,37 @@ function AddInvestmentSheet({
   onSave: (data: Omit<Investment, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => void
   onDelete?: () => void
 }) {
+  const [invType, setInvType] = useState<InvType>(initial?.investment_type ?? 'stock')
   const [ticker, setTicker] = useState(initial?.ticker ?? '')
   const [quantity, setQuantity] = useState(initial?.quantity?.toString() ?? '')
   const [buyPrice, setBuyPrice] = useState(initial?.buy_price?.toString() ?? '')
   const [sellPrice, setSellPrice] = useState(initial?.sell_price?.toString() ?? '')
   const [buyDate, setBuyDate] = useState(initial?.buy_date ?? format(new Date(), 'yyyy-MM-dd'))
-  const [closing, setClosing] = useState(false)
+  // Options-only
+  const [optionType, setOptionType] = useState<'call' | 'put'>(initial?.option_type ?? 'call')
+  const [strikePrice, setStrikePrice] = useState(initial?.strike_price?.toString() ?? '')
+  const [expiryDate, setExpiryDate] = useState(initial?.expiry_date ?? '')
+  const [isExpired, setIsExpired] = useState(initial?.is_expired ?? false)
 
   const isEdit = !!initial
+  const isOptions = invType === 'options'
+
   const canSave = ticker.trim() !== '' && parseFloat(quantity) > 0 && parseFloat(buyPrice) > 0
+    && (!isOptions || (strikePrice !== '' && expiryDate !== ''))
 
   const handleSave = () => {
     if (!canSave) return
     onSave({
+      investment_type: invType,
       ticker: ticker.trim().toUpperCase(),
       quantity: parseFloat(quantity),
       buy_price: parseFloat(buyPrice),
       sell_price: sellPrice && parseFloat(sellPrice) > 0 ? parseFloat(sellPrice) : null,
       buy_date: buyDate,
+      option_type: isOptions ? optionType : null,
+      strike_price: isOptions && strikePrice ? parseFloat(strikePrice) : null,
+      expiry_date: isOptions ? expiryDate || null : null,
+      is_expired: isOptions ? isExpired : false,
     })
     onClose()
   }
@@ -158,8 +193,30 @@ function AddInvestmentSheet({
   return (
     <Sheet open={open} onClose={onClose} title={isEdit ? ticker : 'Add Position'}>
       <div className="px-5 flex flex-col gap-4 pb-6">
+        {/* Type toggle — only on new entries */}
+        {!isEdit && (
+          <div className="flex rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+            {(['stock', 'options'] as InvType[]).map((t) => (
+              <button
+                key={t}
+                onClick={() => setInvType(t)}
+                className={`flex-1 py-2 text-sm font-medium transition-all ${
+                  invType === t
+                    ? 'bg-primary-600 text-white'
+                    : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400'
+                }`}
+              >
+                {t === 'stock' ? 'Stock / ETF' : 'Options Premium'}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Ticker */}
         <div>
-          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Ticker Symbol</label>
+          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+            {isOptions ? 'Underlying Ticker' : 'Ticker Symbol'}
+          </label>
           <input
             value={ticker}
             onChange={(e) => setTicker(e.target.value.toUpperCase())}
@@ -169,9 +226,37 @@ function AddInvestmentSheet({
           />
         </div>
 
+        {/* Options-only: Call/Put + Strike */}
+        {isOptions && (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Option Type</label>
+              <div className="flex rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+                {(['call', 'put'] as const).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setOptionType(t)}
+                    className={`flex-1 py-2 text-xs font-semibold capitalize transition-all ${
+                      optionType === t
+                        ? t === 'call' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
+                        : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <PriceInput label="Strike Price ($)" value={strikePrice} onChange={setStrikePrice} />
+          </div>
+        )}
+
+        {/* Quantity / Contracts + Date */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Quantity</label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+              {isOptions ? 'Contracts' : 'Quantity'}
+            </label>
             <input
               type="number"
               min="0"
@@ -183,7 +268,9 @@ function AddInvestmentSheet({
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Buy Date</label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+              {isOptions ? 'Entry Date' : 'Buy Date'}
+            </label>
             <input
               type="date"
               value={buyDate}
@@ -193,24 +280,31 @@ function AddInvestmentSheet({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        {/* Options-only: Expiry Date */}
+        {isOptions && (
           <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Buy Price ($)</label>
-            <div className="relative">
-              <span className="absolute left-3 top-2.5 text-gray-400 text-sm">$</span>
-              <input
-                type="number"
-                min="0"
-                step="any"
-                value={buyPrice}
-                onChange={(e) => setBuyPrice(e.target.value)}
-                placeholder="0.00"
-                className="w-full rounded-xl bg-gray-50 dark:bg-gray-800 pl-6 pr-3 py-2.5 text-sm text-gray-900 dark:text-gray-50 outline-none focus:ring-2 focus:ring-primary-500/50"
-              />
-            </div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Expiry Date</label>
+            <input
+              type="date"
+              value={expiryDate}
+              onChange={(e) => setExpiryDate(e.target.value)}
+              className="w-full rounded-xl bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-50 outline-none focus:ring-2 focus:ring-primary-500/50"
+            />
           </div>
+        )}
+
+        {/* Price fields */}
+        <div className="grid grid-cols-2 gap-3">
+          <PriceInput
+            label={isOptions ? 'Premium / Contract ($)' : 'Buy Price ($)'}
+            value={buyPrice}
+            onChange={setBuyPrice}
+          />
           <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Sell Price ($) <span className="text-gray-400 font-normal">optional</span></label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+              {isOptions ? 'Buyback Price ($)' : 'Sell Price ($)'}
+              {' '}<span className="text-gray-400 font-normal">optional</span>
+            </label>
             <div className="relative">
               <span className="absolute left-3 top-2.5 text-gray-400 text-sm">$</span>
               <input
@@ -220,22 +314,28 @@ function AddInvestmentSheet({
                 value={sellPrice}
                 onChange={(e) => setSellPrice(e.target.value)}
                 placeholder="0.00"
-                className="w-full rounded-xl bg-gray-50 dark:bg-gray-800 pl-6 pr-3 py-2.5 text-sm text-gray-900 dark:text-gray-50 outline-none focus:ring-2 focus:ring-primary-500/50"
+                disabled={isOptions && isExpired}
+                className="w-full rounded-xl bg-gray-50 dark:bg-gray-800 pl-6 pr-3 py-2.5 text-sm text-gray-900 dark:text-gray-50 outline-none focus:ring-2 focus:ring-primary-500/50 disabled:opacity-40"
               />
             </div>
           </div>
         </div>
 
-        {!sellPrice && isEdit && (
+        {/* Options: expired worthless toggle */}
+        {isOptions && (
           <button
-            onClick={() => setClosing(true)}
-            className="text-sm text-primary-600 dark:text-primary-400 font-medium text-left"
+            onClick={() => { setIsExpired(!isExpired); if (!isExpired) setSellPrice('') }}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium border transition-all ${
+              isExpired
+                ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400'
+                : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400'
+            }`}
           >
-            + Close this position
+            <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${isExpired ? 'bg-emerald-500 border-emerald-500' : 'border-gray-400'}`}>
+              {isExpired && <span className="text-white text-[10px] font-bold">✓</span>}
+            </span>
+            Expired worthless (keep full premium)
           </button>
-        )}
-        {closing && (
-          <p className="text-xs text-gray-500">Fill in the Sell Price above to close this position.</p>
         )}
 
         <Button onClick={handleSave} disabled={!canSave} size="lg" className="w-full">
@@ -265,11 +365,23 @@ function InvestmentsTab() {
   const [sort, setSort] = useState<InvSort>('newest')
   const [closedExpanded, setClosedExpanded] = useState(false)
 
-  const open = investments.filter((i) => i.sell_price === null)
-  const closed = investments.filter((i) => i.sell_price !== null)
+  const isClosedPosition = (i: Investment) => {
+    if ((i.investment_type ?? 'stock') === 'options') return i.is_expired || i.sell_price !== null
+    return i.sell_price !== null
+  }
+  const open = investments.filter((i) => !isClosedPosition(i))
+  const closed = investments.filter((i) => isClosedPosition(i))
+
+  const positionPnl = (i: Investment) => {
+    if ((i.investment_type ?? 'stock') === 'options') {
+      const buyback = i.sell_price ?? 0
+      return (i.buy_price - buyback) * i.quantity
+    }
+    return (i.sell_price! - i.buy_price) * i.quantity
+  }
 
   const totalOpen = open.reduce((s, i) => s + i.buy_price * i.quantity, 0)
-  const totalClosedPnl = closed.reduce((s, i) => s + (i.sell_price! - i.buy_price) * i.quantity, 0)
+  const totalClosedPnl = closed.reduce((s, i) => s + positionPnl(i), 0)
   const totalInvestment = totalOpen + totalClosedPnl
 
   const sortedOpen = useMemo(() => {
@@ -369,34 +481,46 @@ function InvestmentsTab() {
       {sortedOpen.length > 0 && (
         <div className="rounded-2xl bg-white dark:bg-gray-900 shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
           <div className="divide-y divide-gray-50 dark:divide-gray-800/50">
-            {sortedOpen.map((inv) => (
+            {sortedOpen.map((inv) => {
+              const isOpt = (inv.investment_type ?? 'stock') === 'options'
+              return (
               <button
                 key={inv.id}
                 onClick={() => setEditInv(inv)}
                 className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
               >
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center flex-shrink-0">
-                  <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isOpt ? 'bg-indigo-50 dark:bg-indigo-900/20' : 'bg-emerald-50 dark:bg-emerald-900/20'}`}>
+                  <span className={`text-xs font-bold ${isOpt ? 'text-indigo-700 dark:text-indigo-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
                     {inv.ticker.slice(0, 2)}
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="font-bold text-gray-900 dark:text-gray-50 font-mono">{inv.ticker}</span>
-                    <span className="text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded-full">Open</span>
+                    {isOpt && inv.option_type && (
+                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${inv.option_type === 'call' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'}`}>
+                        {inv.option_type.toUpperCase()}
+                      </span>
+                    )}
+                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${isOpt ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'}`}>
+                      {isOpt ? 'Premium' : 'Open'}
+                    </span>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    ${inv.buy_price.toFixed(2)} × {inv.quantity} · {daysOpen(inv.buy_date)}d
+                    {isOpt
+                      ? `$${inv.strike_price?.toFixed(0) ?? '—'} strike · ${inv.quantity} contract${inv.quantity !== 1 ? 's' : ''} · exp ${inv.expiry_date ?? '—'}`
+                      : `$${inv.buy_price.toFixed(2)} × ${inv.quantity} · ${daysOpen(inv.buy_date)}d`}
                   </p>
                 </div>
                 <div className="text-right flex-shrink-0">
                   <p className="font-semibold text-gray-900 dark:text-gray-50">
                     ${(inv.buy_price * inv.quantity).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
-                  <p className="text-xs text-gray-400">cost</p>
+                  <p className="text-xs text-gray-400">{isOpt ? 'premium' : 'cost'}</p>
                 </div>
               </button>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}
@@ -417,7 +541,16 @@ function InvestmentsTab() {
             <div className="rounded-2xl bg-white dark:bg-gray-900 shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
               <div className="divide-y divide-gray-50 dark:divide-gray-800/50">
                 {closed.map((inv) => {
-                  const pnl = (inv.sell_price! - inv.buy_price) * inv.quantity
+                  const isOpt = (inv.investment_type ?? 'stock') === 'options'
+                  const pnl = positionPnl(inv)
+                  const closedLabel = isOpt
+                    ? inv.is_expired ? 'Expired' : 'Closed'
+                    : 'Closed'
+                  const subtext = isOpt
+                    ? inv.is_expired
+                      ? `Premium $${inv.buy_price.toFixed(2)} × ${inv.quantity} → Expired worthless`
+                      : `Premium $${inv.buy_price.toFixed(2)} → Buyback $${inv.sell_price!.toFixed(2)} × ${inv.quantity}`
+                    : `Buy $${inv.buy_price.toFixed(2)} → Sell $${inv.sell_price!.toFixed(2)} × ${inv.quantity}`
                   return (
                     <button
                       key={inv.id}
@@ -430,17 +563,20 @@ function InvestmentsTab() {
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="font-bold text-gray-900 dark:text-gray-50 font-mono">{inv.ticker}</span>
-                          <span className="text-[10px] font-semibold bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-1.5 py-0.5 rounded-full">Closed</span>
+                          {isOpt && inv.option_type && (
+                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${inv.option_type === 'call' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'}`}>
+                              {inv.option_type.toUpperCase()}
+                            </span>
+                          )}
+                          <span className="text-[10px] font-semibold bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded-full">{closedLabel}</span>
                         </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                          Buy ${inv.buy_price.toFixed(2)} → Sell ${inv.sell_price!.toFixed(2)} × {inv.quantity}
-                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{subtext}</p>
                       </div>
                       <div className="text-right flex-shrink-0">
                         <p className={`font-semibold ${pnl >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                          {pnl >= 0 ? '+' : ''}${pnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {pnl >= 0 ? '+' : ''}${Math.abs(pnl).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </p>
                         <p className="text-xs text-gray-400">P&L</p>
                       </div>

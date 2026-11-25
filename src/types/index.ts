@@ -134,10 +134,16 @@ export interface Investment {
   id: string
   user_id: string
   ticker: string
-  quantity: number
-  buy_price: number
-  sell_price: number | null
-  buy_date: string
+  quantity: number          // shares (stock) or contracts (options)
+  buy_price: number         // cost per share (stock) or premium received per contract (options)
+  sell_price: number | null // sell price (stock) or buyback cost per contract (options)
+  buy_date: string          // trade entry date  yyyy-MM-dd
+  // Options-specific fields (null for stocks)
+  investment_type: 'stock' | 'options'
+  option_type: 'call' | 'put' | null
+  strike_price: number | null
+  expiry_date: string | null
+  is_expired: boolean        // true = option expired worthless (full premium kept)
   created_at: string
   updated_at: string
 }
