@@ -13,6 +13,12 @@ export function useAuth() {
       return
     }
 
+    // Restore demo data on page refresh (categories/transactions not persisted in localStorage)
+    if (useAppStore.getState().isDemoMode) {
+      loadDemoData()
+      return
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
       if (session?.user) {

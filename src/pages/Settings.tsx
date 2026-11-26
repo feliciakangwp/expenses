@@ -1,25 +1,114 @@
 import { useState } from 'react'
-import { Moon, Sun, Monitor, Eye, EyeOff, LogOut, User, CreditCard, Trash2, Info, Shield, ChevronRight } from 'lucide-react'
+import { Moon, Sun, Monitor, Eye, EyeOff, LogOut, User, CreditCard, Trash2, Info, Shield, ChevronRight, Pencil, Plus, Check, X, Utensils, Car, Home, ShoppingBag, Dumbbell, HeartPulse, Sparkles, Laptop, Plane, Gamepad2, BookOpen, Users, HandHeart, ShieldIcon, Landmark, CircleEllipsis, Banknote, TrendingUp, Coffee, Gift, Baby, PawPrint, Zap, Music, Camera, Briefcase, Bus, Bike, Pizza, Wine, Film, ShoppingCart, Package, Stethoscope, Pill, Scissors, Shirt, Tv, Wifi, Phone, GraduationCap, Building2, Trees, Star, Heart, Wallet, PiggyBank, Receipt, Tag } from 'lucide-react'
 import { useAppStore } from '@/store/app'
 import type { AccentColor } from '@/store/app'
+import type { Category } from '@/types'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { CategoryIcon } from '@/components/ui/CategoryIcon'
 import { useAuth } from '@/hooks/useAuth'
 import { useData } from '@/hooks/useData'
-import { cn, generateId } from '@/lib/utils'
+import { cn, generateId, nowSGT } from '@/lib/utils'
 import { isSupabaseConfigured } from '@/lib/supabase'
+
+const ICON_OPTIONS: { name: string; Icon: React.ElementType }[] = [
+  { name: 'utensils', Icon: Utensils }, { name: 'coffee', Icon: Coffee }, { name: 'pizza', Icon: Pizza },
+  { name: 'wine', Icon: Wine }, { name: 'car', Icon: Car }, { name: 'bus', Icon: Bus },
+  { name: 'bike', Icon: Bike }, { name: 'plane', Icon: Plane }, { name: 'home', Icon: Home },
+  { name: 'building-2', Icon: Building2 }, { name: 'zap', Icon: Zap }, { name: 'wifi', Icon: Wifi },
+  { name: 'phone', Icon: Phone }, { name: 'laptop', Icon: Laptop }, { name: 'tv', Icon: Tv },
+  { name: 'shopping-bag', Icon: ShoppingBag }, { name: 'shopping-cart', Icon: ShoppingCart },
+  { name: 'shirt', Icon: Shirt }, { name: 'package', Icon: Package }, { name: 'dumbbell', Icon: Dumbbell },
+  { name: 'heart-pulse', Icon: HeartPulse }, { name: 'stethoscope', Icon: Stethoscope },
+  { name: 'pill', Icon: Pill }, { name: 'sparkles', Icon: Sparkles }, { name: 'scissors', Icon: Scissors },
+  { name: 'book-open', Icon: BookOpen }, { name: 'graduation-cap', Icon: GraduationCap },
+  { name: 'gamepad-2', Icon: Gamepad2 }, { name: 'film', Icon: Film }, { name: 'music', Icon: Music },
+  { name: 'camera', Icon: Camera }, { name: 'users', Icon: Users }, { name: 'baby', Icon: Baby },
+  { name: 'gift', Icon: Gift }, { name: 'paw-print', Icon: PawPrint }, { name: 'trees', Icon: Trees },
+  { name: 'hand-heart', Icon: HandHeart }, { name: 'shield', Icon: ShieldIcon }, { name: 'landmark', Icon: Landmark },
+  { name: 'banknote', Icon: Banknote }, { name: 'trending-up', Icon: TrendingUp }, { name: 'piggy-bank', Icon: PiggyBank },
+  { name: 'wallet', Icon: Wallet }, { name: 'receipt', Icon: Receipt }, { name: 'briefcase', Icon: Briefcase },
+  { name: 'tag', Icon: Tag }, { name: 'star', Icon: Star }, { name: 'heart', Icon: Heart },
+  { name: 'circle-ellipsis', Icon: CircleEllipsis },
+]
+
+const COLOR_OPTIONS = [
+  '#f97316','#ef4444','#ec4899','#f43f5e','#a855f7','#8b5cf6','#6366f1',
+  '#3b82f6','#0ea5e9','#06b6d4','#10b981','#22c55e','#84cc16','#eab308',
+  '#f59e0b','#78716c','#64748b','#94a3b8',
+]
 
 export function Settings() {
   const {
     user, isDemoMode, theme, setTheme, privacyMode, setPrivacyMode,
-    accentColor, setAccentColor, paymentMethods,
+    accentColor, setAccentColor, paymentMethods, categories,
   } = useAppStore()
   const { signOut } = useAuth()
-  const { savePaymentMethod, deletePaymentMethod, savePreferences } = useData()
+  const { savePaymentMethod, deletePaymentMethod, savePreferences, saveCategory, editCategory, deleteCategory } = useData()
   const [signingOut, setSigningOut] = useState(false)
   const [showAddCard, setShowAddCard] = useState(false)
   const [newCardName, setNewCardName] = useState('')
+
+  // Categories state
+  const [catTab, setCatTab] = useState<'expense' | 'income'>('expense')
+  const [editingCat, setEditingCat] = useState<Category | null>(null)
+  const [showCatForm, setShowCatForm] = useState(false)
+  const [catForm, setCatForm] = useState({ name: '', icon: 'circle-ellipsis', color: '#6366f1', type: 'expense' as 'expense' | 'income' })
+  const [showIconPicker, setShowIconPicker] = useState(false)
+
+  const expenseCategories = categories.filter((c) => !c.is_archived && c.transaction_type === 'expense')
+  const incomeCategories = categories.filter((c) => !c.is_archived && c.transaction_type === 'income')
+
+  const openAddCat = () => {
+    setEditingCat(null)
+    setCatForm({ name: '', icon: 'circle-ellipsis', color: '#6366f1', type: catTab })
+    setShowCatForm(true)
+    setShowIconPicker(false)
+  }
+
+  const openEditCat = (cat: Category) => {
+    setEditingCat(cat)
+    setCatForm({ name: cat.name, icon: cat.icon, color: cat.color, type: cat.transaction_type as 'expense' | 'income' })
+    setShowCatForm(true)
+    setShowIconPicker(false)
+  }
+
+  const handleSaveCat = async () => {
+    if (!catForm.name.trim()) return
+    const base = {
+      user_id: user?.id ?? 'demo-user',
+      name: catForm.name.trim(),
+      icon: catForm.icon,
+      color: catForm.color,
+      transaction_type: catForm.type as Category['transaction_type'],
+      is_needs: null,
+      is_fixed: null,
+      monthly_budget: null,
+      is_archived: false,
+      is_system: false,
+      is_pinned: false,
+    }
+    if (editingCat) {
+      await editCategory({ ...editingCat, ...base, updated_at: nowSGT() })
+    } else {
+      const existing = categories.filter((c) => c.transaction_type === catForm.type)
+      await saveCategory({
+        ...base,
+        id: generateId(),
+        sort_order: existing.length + 1,
+        created_at: nowSGT(),
+        updated_at: nowSGT(),
+      })
+    }
+    setShowCatForm(false)
+    setEditingCat(null)
+  }
+
+  const handleDeleteCat = async (cat: Category) => {
+    if (!window.confirm(`Delete "${cat.name}"? Existing transactions won't be affected.`)) return
+    await deleteCategory(cat.id)
+  }
 
   const handleSignOut = async () => {
     setSigningOut(true)
@@ -194,6 +283,142 @@ export function Settings() {
                   autoFocus
                 />
                 <Button size="sm" onClick={handleAddCard} disabled={!newCardName.trim()}>Add</Button>
+              </div>
+            </div>
+          )}
+        </Card>
+
+        {/* Categories */}
+        <Card>
+          <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Categories</h3>
+            <button onClick={openAddCat} className="text-xs font-medium text-primary-600 dark:text-primary-400">+ Add</button>
+          </div>
+
+          {/* Tab switcher */}
+          <div className="flex px-4 pt-3 gap-2">
+            {(['expense', 'income'] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setCatTab(t)}
+                className={cn(
+                  'flex-1 py-1.5 rounded-lg text-xs font-medium transition-all',
+                  catTab === t
+                    ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300'
+                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+                )}
+              >
+                {t === 'expense' ? 'Expense' : 'Income'}
+              </button>
+            ))}
+          </div>
+
+          {/* Category list */}
+          <div className="divide-y divide-gray-50 dark:divide-gray-800/50 mt-2">
+            {(catTab === 'expense' ? expenseCategories : incomeCategories).map((cat) => (
+              <div key={cat.id} className="flex items-center gap-3 px-4 py-2.5">
+                <CategoryIcon icon={cat.icon} color={cat.color} size="sm" />
+                <span className="flex-1 text-sm text-gray-800 dark:text-gray-200">{cat.name}</span>
+                <button onClick={() => openEditCat(cat)} className="text-gray-300 dark:text-gray-600 hover:text-primary-500 transition-colors mr-1">
+                  <Pencil size={14} />
+                </button>
+                <button onClick={() => handleDeleteCat(cat)} className="text-gray-300 dark:text-gray-600 hover:text-red-500 transition-colors">
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+            {(catTab === 'expense' ? expenseCategories : incomeCategories).length === 0 && (
+              <div className="px-4 py-6 text-center text-sm text-gray-400">No {catTab} categories yet</div>
+            )}
+          </div>
+
+          {/* Add/Edit form */}
+          {showCatForm && (
+            <div className="px-4 pb-4 pt-3 border-t border-gray-100 dark:border-gray-800">
+              <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-3">
+                {editingCat ? 'Edit Category' : 'New Category'}
+              </p>
+
+              {/* Type (only for new) */}
+              {!editingCat && (
+                <div className="flex gap-2 mb-3">
+                  {(['expense', 'income'] as const).map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setCatForm((f) => ({ ...f, type: t }))}
+                      className={cn(
+                        'flex-1 py-1.5 rounded-lg text-xs font-medium transition-all border',
+                        catForm.type === t
+                          ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 border-primary-300 dark:border-primary-700'
+                          : 'text-gray-500 border-gray-200 dark:border-gray-700 dark:text-gray-400'
+                      )}
+                    >
+                      {t === 'expense' ? 'Expense' : 'Income'}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Name input */}
+              <input
+                value={catForm.name}
+                onChange={(e) => setCatForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="Category name"
+                className="w-full rounded-xl bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500/50 mb-3"
+                autoFocus
+              />
+
+              {/* Icon + Color row */}
+              <div className="flex items-center gap-3 mb-3">
+                <button
+                  onClick={() => setShowIconPicker((v) => !v)}
+                  className="flex items-center gap-2 rounded-xl bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <CategoryIcon icon={catForm.icon} color={catForm.color} size="sm" />
+                  <span className="text-xs">Icon</span>
+                </button>
+                <div className="flex flex-wrap gap-1.5 flex-1">
+                  {COLOR_OPTIONS.map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setCatForm((f) => ({ ...f, color: c }))}
+                      className={cn(
+                        'h-6 w-6 rounded-full transition-all',
+                        catForm.color === c && 'ring-2 ring-offset-1 ring-gray-400 dark:ring-gray-500 scale-110'
+                      )}
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Icon picker grid */}
+              {showIconPicker && (
+                <div className="grid grid-cols-8 gap-1.5 mb-3 p-2 rounded-xl bg-gray-50 dark:bg-gray-800">
+                  {ICON_OPTIONS.map(({ name, Icon }) => (
+                    <button
+                      key={name}
+                      onClick={() => { setCatForm((f) => ({ ...f, icon: name })); setShowIconPicker(false) }}
+                      className={cn(
+                        'flex items-center justify-center h-8 w-8 rounded-lg transition-all',
+                        catForm.icon === name
+                          ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-400'
+                          : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      )}
+                    >
+                      <Icon size={16} />
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <Button size="sm" onClick={handleSaveCat} disabled={!catForm.name.trim()} className="flex-1 gap-1">
+                  <Check size={14} /> {editingCat ? 'Save' : 'Add'}
+                </Button>
+                <Button size="sm" variant="secondary" onClick={() => { setShowCatForm(false); setEditingCat(null) }} className="gap-1">
+                  <X size={14} /> Cancel
+                </Button>
               </div>
             </div>
           )}

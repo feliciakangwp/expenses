@@ -35,6 +35,9 @@ interface AppState {
   updateTransaction: (t: Transaction) => void
   deleteTransaction: (id: string) => void
   setCategories: (c: Category[]) => void
+  addCategory: (c: Category) => void
+  updateCategory: (c: Category) => void
+  removeCategory: (id: string) => void
   setPaymentMethods: (p: PaymentMethod[]) => void
   addPaymentMethod: (pm: PaymentMethod) => void
   removePaymentMethod: (id: string) => void
@@ -87,6 +90,9 @@ export const useAppStore = create<AppState>()(
           transactions: s.transactions.filter((tx) => tx.id !== id),
         })),
       setCategories: (categories) => set({ categories }),
+      addCategory: (c) => set((s) => ({ categories: [...s.categories, c] })),
+      updateCategory: (c) => set((s) => ({ categories: s.categories.map((x) => (x.id === c.id ? c : x)) })),
+      removeCategory: (id) => set((s) => ({ categories: s.categories.filter((x) => x.id !== id) })),
       setPaymentMethods: (paymentMethods) => set({ paymentMethods }),
       addPaymentMethod: (pm) => set((s) => ({ paymentMethods: [...s.paymentMethods, pm] })),
       removePaymentMethod: (id) =>

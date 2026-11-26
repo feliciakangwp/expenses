@@ -12,6 +12,7 @@ export function useData() {
     setTransactions, setCategories, setPaymentMethods, setBudgets,
     setInvestments, setRecurringExpenses,
     addTransaction, updateTransaction, deleteTransaction,
+    addCategory, updateCategory, removeCategory,
     addPaymentMethod, removePaymentMethod,
     addInvestment, updateInvestment, removeInvestment,
     addRecurringExpense, updateRecurringExpense, removeRecurringExpense,
@@ -302,6 +303,37 @@ export function useData() {
     [isDemoMode, removeRecurringExpense]
   )
 
+  // Categories
+  const saveCategory = useCallback(
+    async (cat: Category): Promise<void> => {
+      if (isDemoMode) { addCategory(cat); return }
+      const { error } = await supabase.from('categories').insert([cat] as any)
+      if (error) throw error
+      addCategory(cat)
+    },
+    [isDemoMode, addCategory]
+  )
+
+  const editCategory = useCallback(
+    async (cat: Category): Promise<void> => {
+      if (isDemoMode) { updateCategory(cat); return }
+      const { error } = await (supabase.from('categories') as any).update({ ...cat, updated_at: nowSGT() }).eq('id', cat.id)
+      if (error) throw error
+      updateCategory(cat)
+    },
+    [isDemoMode, updateCategory]
+  )
+
+  const deleteCategory = useCallback(
+    async (id: string): Promise<void> => {
+      if (isDemoMode) { removeCategory(id); return }
+      const { error } = await supabase.from('categories').delete().eq('id', id)
+      if (error) throw error
+      removeCategory(id)
+    },
+    [isDemoMode, removeCategory]
+  )
+
   // Preferences — save theme/accentColor to Supabase user metadata
   const savePreferences = useCallback(
     async (prefs: { theme?: string; accentColor?: string }): Promise<void> => {
@@ -314,6 +346,7 @@ export function useData() {
   return {
     fetchAll,
     saveTransaction, editTransaction, removeTransaction,
+    saveCategory, editCategory, deleteCategory,
     savePaymentMethod, deletePaymentMethod,
     saveBudget,
     saveInvestment, editInvestment, deleteInvestment,
