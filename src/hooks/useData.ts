@@ -54,7 +54,7 @@ export function useData() {
           created_at: nowSGT(),
           updated_at: nowSGT(),
         }))
-        const { data: inserted } = await supabase.from('categories').insert(toInsert).select('*')
+        const { data: inserted } = await supabase.from('categories').insert(toInsert as any).select('*')
         // Seed subcategories
         if (inserted) {
           const subRows = inserted.flatMap((cat: Category) => {
@@ -69,7 +69,7 @@ export function useData() {
               updated_at: nowSGT(),
             }))
           })
-          if (subRows.length > 0) await supabase.from('subcategories').insert(subRows)
+          if (subRows.length > 0) await supabase.from('subcategories').insert(subRows as any)
           cats = inserted
         }
       }
