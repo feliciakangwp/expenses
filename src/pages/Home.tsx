@@ -12,6 +12,7 @@ import { Sheet } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
 import type { Transaction, Subcategory, RecurringExpense, Frequency } from '@/types'
 import { getMonthRange, generateId, nowSGT } from '@/lib/utils'
+import { DEFAULT_SUBCATEGORIES } from '@/data/categories'
 import { format, parseISO, addWeeks, addMonths, addYears } from 'date-fns'
 
 function advanceDate(date: string, freq: 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'annual'): string {
@@ -272,10 +273,22 @@ export function Home() {
 
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null)
 
-  // Build subcategory map
+  // Build subcategory map from category names → DEFAULT_SUBCATEGORIES
   const subcategoryMap = useMemo(() => {
     const map: Record<string, Subcategory[]> = {}
-    // In demo mode, derive from category data only
+    for (const cat of categories) {
+      const names = DEFAULT_SUBCATEGORIES[cat.name] ?? []
+      map[cat.id] = names.map((name, i) => ({
+        id: `${cat.id}-sub-${i}`,
+        category_id: cat.id,
+        user_id: cat.user_id ?? null,
+        name,
+        sort_order: i + 1,
+        is_archived: false,
+        created_at: cat.created_at,
+        updated_at: cat.updated_at,
+      }))
+    }
     return map
   }, [categories])
 

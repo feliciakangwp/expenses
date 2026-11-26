@@ -21,8 +21,8 @@ export function useData() {
       const [catRes, txRes, pmRes, budgetRes] = await Promise.all([
         supabase
           .from('categories')
-          .select('*, subcategories(*)')
-          .or(`user_id.eq.${user.id},is_system.eq.true`)
+          .select('*')
+          .eq('user_id', user.id)
           .eq('is_archived', false)
           .order('sort_order'),
         supabase
@@ -44,34 +44,21 @@ export function useData() {
       ])
 
       let cats = catRes.data as Category[] | null
-      if (cats && cats.length === 0) {
+      if (!cats || cats.length === 0) {
         // New user — seed default categories
-        const toInsert = DEFAULT_CATEGORIES.map((c, i) => ({
-          id: generateId(),
-          user_id: user!.id,
-          ...c,
-          sort_order: i + 1,
-          created_at: nowSGT(),
-          updated_at: nowSGT(),
-        }))
+        const toInsert = DEFAULT_CATEGORIES
+          .filter((c) => c.transaction_type === 'expense' || c.transaction_type === 'income')
+          .map((c, i) => ({
+            id: generateId(),
+            user_id: user!.id,
+            ...c,
+            is_system: false,
+            sort_order: i + 1,
+            created_at: nowSGT(),
+            updated_at: nowSGT(),
+          }))
         const { data: inserted } = await supabase.from('categories').insert(toInsert as any).select('*')
-        // Seed subcategories
-        if (inserted) {
-          const subRows = inserted.flatMap((cat: Category) => {
-            const subs = DEFAULT_SUBCATEGORIES[cat.name] ?? []
-            return subs.map((name, idx) => ({
-              id: generateId(),
-              category_id: cat.id,
-              name,
-              sort_order: idx + 1,
-              is_archived: false,
-              created_at: nowSGT(),
-              updated_at: nowSGT(),
-            }))
-          })
-          if (subRows.length > 0) await supabase.from('subcategories').insert(subRows as any)
-          cats = inserted
-        }
+        cats = inserted as Category[] | null
       }
       if (cats) setCategories(cats)
       if (txRes.data) setTransactions(txRes.data as Transaction[])
