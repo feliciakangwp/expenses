@@ -103,7 +103,7 @@ export function Budget() {
         onChange={(y, m) => { setYear(y); setMonth(m); setEditing(false) }}
       />
 
-      <div className="px-5 flex flex-col gap-4 pb-8">
+      <div className="px-5 flex flex-col gap-4 pb-8 md:grid md:grid-cols-2 md:items-start">
         {/* Monthly Budget Card */}
         <Card className="p-4">
           <div className="flex items-center justify-between mb-4">
@@ -286,7 +286,7 @@ export function Budget() {
 
         {/* Spending total when no chart data yet */}
         {yearChartData.length === 0 && totalSpent > 0 && (
-          <Card className="p-4">
+          <Card className="p-4 md:col-span-2">
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
               {format(selectedDate, 'MMMM')} Spending
             </h3>

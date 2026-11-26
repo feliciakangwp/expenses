@@ -31,7 +31,7 @@ export function CategoryPicker({ categories, selected, onSelect, recentIds = [] 
 
   return (
     <div>
-      <div className="grid grid-cols-4 gap-3 px-4">
+      <div className="grid grid-cols-4 md:grid-cols-6 gap-3 px-4">
         {visible.map((cat) => (
           <button
             key={cat.id}

@@ -102,8 +102,8 @@ export function QuickExpenseEntry({
         />
       </div>
 
-      {/* Amount Display */}
-      <div className="px-5 text-center">
+      {/* Amount Display — mobile only */}
+      <div className="md:hidden px-5 text-center">
         <div
           className={cn(
             'text-5xl font-bold tracking-tight transition-colors',
@@ -117,8 +117,28 @@ export function QuickExpenseEntry({
         </div>
       </div>
 
-      {/* Keypad */}
-      <NumericKeypad value={amount} onChange={setAmount} />
+      {/* Amount Input — desktop only */}
+      <div className="hidden md:block px-5">
+        <div className="relative">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-semibold text-gray-400">$</span>
+          <input
+            type="text"
+            inputMode="decimal"
+            value={amount === '0' ? '' : amount}
+            onChange={(e) => setAmount(e.target.value || '0')}
+            onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+            placeholder="0.00"
+            className="w-full rounded-xl bg-gray-50 dark:bg-gray-800 pl-10 pr-4 py-3 text-3xl font-bold text-gray-900 dark:text-gray-50 placeholder-gray-300 dark:placeholder-gray-700 outline-none focus:ring-2 focus:ring-primary-500/50"
+            autoFocus
+          />
+        </div>
+        <p className="text-xs text-gray-400 text-center mt-1.5">Type amount · Press <kbd className="rounded bg-gray-100 dark:bg-gray-800 px-1 py-0.5 text-[10px] font-mono">↵</kbd> to save</p>
+      </div>
+
+      {/* Keypad — mobile only */}
+      <div className="md:hidden">
+        <NumericKeypad value={amount} onChange={setAmount} />
+      </div>
 
       {/* Payment Method — always visible */}
       <div className="px-5">
@@ -151,7 +171,7 @@ export function QuickExpenseEntry({
       <div className="px-5">
         <button
           onClick={() => setShowMore(!showMore)}
-          className="flex w-full items-center justify-between py-2 text-sm font-medium text-gray-500 dark:text-gray-400"
+          className="md:hidden flex w-full items-center justify-between py-2 text-sm font-medium text-gray-500 dark:text-gray-400"
         >
           <span>{showMore ? 'Less details' : 'More details'}</span>
           {showMore ? <ChevronUp size={16} /> : <ChevronDown size={16} />}

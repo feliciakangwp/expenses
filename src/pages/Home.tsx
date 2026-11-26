@@ -477,7 +477,7 @@ export function Home() {
       </div>
 
       {/* Main content area: 2-col on desktop */}
-      <div className="md:grid md:grid-cols-2 md:gap-6 md:px-6 md:items-start">
+      <div className="md:grid md:grid-cols-[1fr_380px] md:gap-6 md:px-6 md:items-start">
         {/* Left: Quick Entry */}
         <div>
           {/* Mobile: overlap card */}

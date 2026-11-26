@@ -60,7 +60,8 @@ export function SideNav() {
       </div>
 
       {/* Nav Items */}
-      <nav className="flex flex-col gap-1 px-3 flex-1">
+      <nav className="flex flex-col gap-0.5 px-3 flex-1">
+        <p className="px-4 mb-1 text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-600">Menu</p>
         {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
@@ -68,7 +69,7 @@ export function SideNav() {
             end={to === '/'}
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-sm font-medium',
+                'flex items-center gap-3 px-4 py-2.5 rounded-2xl transition-all duration-150 text-sm font-medium',
                 isActive
                   ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
                   : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-50'

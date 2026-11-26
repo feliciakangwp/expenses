@@ -61,7 +61,7 @@ function AppContent() {
       {/* Main content */}
       <main className="flex-1 md:ml-60 pb-24 md:pb-0 overflow-x-hidden">
         {/* On desktop, constrain width for readability */}
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/transactions" element={<Transactions />} />

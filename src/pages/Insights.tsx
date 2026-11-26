@@ -119,9 +119,9 @@ export function Insights() {
         onChange={(y, m) => { setYear(y); setMonth(m) }}
       />
 
-      <div className="px-5 flex flex-col gap-4">
+      <div className="px-5 flex flex-col gap-4 md:grid md:grid-cols-2">
         {/* Summary Stats */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 md:col-span-2">
           {[
             { label: 'Total Spent', value: totalSpend },
             { label: 'Daily Average', value: avgDaily },
@@ -252,7 +252,7 @@ export function Insights() {
 
         {/* Daily Trend */}
         {dailyData.length > 1 && (
-          <Card className="p-4">
+          <Card className="p-4 md:col-span-2">
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
               Daily Spending
             </h3>
@@ -317,7 +317,7 @@ export function Insights() {
 
         {/* Category Breakdown */}
         {catSpending.length > 0 && (
-          <Card>
+          <Card className="md:col-span-2">
             <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Category Breakdown</h3>
             </div>
