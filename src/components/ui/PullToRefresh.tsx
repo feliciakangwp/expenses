@@ -1,73 +1,81 @@
 import { useEffect, useRef, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 
-const THRESHOLD = 80 // px to pull before triggering
+const THRESHOLD = 70
 
 export function PullToRefresh() {
-  const [pullY, setPullY] = useState(0)
-  const [refreshing, setRefreshing] = useState(false)
-  const startY = useRef(0)
-  const pulling = useRef(false)
+  const startYRef = useRef(0)
+  const pullYRef = useRef(0)
+  const isPullingRef = useRef(false)
+  const [displayY, setDisplayY] = useState(0)
+  const [triggered, setTriggered] = useState(false)
 
   useEffect(() => {
-    const onTouchStart = (e: TouchEvent) => {
-      // Only activate when scrolled to the very top
-      if (window.scrollY > 0) return
-      startY.current = e.touches[0].clientY
-      pulling.current = true
+    const isAtTop = () => {
+      const st = window.scrollY ?? document.documentElement.scrollTop ?? document.body.scrollTop
+      return st <= 2
     }
 
-    const onTouchMove = (e: TouchEvent) => {
-      if (!pulling.current) return
-      const dy = e.touches[0].clientY - startY.current
-      if (dy <= 0) { setPullY(0); return }
-      // Resist: feels natural, not 1:1
-      setPullY(Math.min(dy * 0.4, THRESHOLD + 20))
+    const onStart = (e: TouchEvent) => {
+      if (!isAtTop()) return
+      startYRef.current = e.touches[0].clientY
+      isPullingRef.current = true
+      pullYRef.current = 0
     }
 
-    const onTouchEnd = () => {
-      if (!pulling.current) return
-      pulling.current = false
-      if (pullY >= THRESHOLD) {
-        setRefreshing(true)
-        setTimeout(() => window.location.reload(), 400)
+    const onMove = (e: TouchEvent) => {
+      if (!isPullingRef.current) return
+      if (!isAtTop()) { isPullingRef.current = false; setDisplayY(0); return }
+      const dy = e.touches[0].clientY - startYRef.current
+      if (dy <= 0) { setDisplayY(0); return }
+      pullYRef.current = Math.min(dy * 0.42, THRESHOLD + 18)
+      setDisplayY(pullYRef.current)
+    }
+
+    const onEnd = () => {
+      if (!isPullingRef.current) return
+      isPullingRef.current = false
+      if (pullYRef.current >= THRESHOLD) {
+        setTriggered(true)
+        setTimeout(() => window.location.reload(), 500)
       } else {
-        setPullY(0)
+        pullYRef.current = 0
+        setDisplayY(0)
       }
     }
 
-    document.addEventListener('touchstart', onTouchStart, { passive: true })
-    document.addEventListener('touchmove', onTouchMove, { passive: true })
-    document.addEventListener('touchend', onTouchEnd, { passive: true })
+    window.addEventListener('touchstart', onStart, { passive: true })
+    window.addEventListener('touchmove', onMove, { passive: true })
+    window.addEventListener('touchend', onEnd, { passive: true })
+    window.addEventListener('touchcancel', onEnd, { passive: true })
     return () => {
-      document.removeEventListener('touchstart', onTouchStart)
-      document.removeEventListener('touchmove', onTouchMove)
-      document.removeEventListener('touchend', onTouchEnd)
+      window.removeEventListener('touchstart', onStart)
+      window.removeEventListener('touchmove', onMove)
+      window.removeEventListener('touchend', onEnd)
+      window.removeEventListener('touchcancel', onEnd)
     }
-  }, [pullY])
+  }, []) // empty deps — all mutable state is in refs
 
-  if (pullY === 0 && !refreshing) return null
+  if (displayY === 0 && !triggered) return null
 
-  const progress = Math.min(pullY / THRESHOLD, 1)
-  const triggered = pullY >= THRESHOLD || refreshing
+  const progress = Math.min(displayY / THRESHOLD, 1)
+  const done = displayY >= THRESHOLD || triggered
 
   return (
     <div
-      className="fixed top-0 left-0 right-0 z-40 flex items-center justify-center transition-all"
-      style={{ height: `${pullY + 4}px`, maxHeight: `${THRESHOLD + 24}px` }}
+      className="fixed top-0 left-0 right-0 z-40 flex items-center justify-center pointer-events-none"
+      style={{ height: `${displayY + 4}px` }}
     >
       <div
-        className={`flex h-9 w-9 items-center justify-center rounded-full shadow-md transition-all ${
-          triggered
-            ? 'bg-primary-600 text-white'
-            : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+        className={`flex h-9 w-9 items-center justify-center rounded-full shadow-md ${
+          done ? 'bg-primary-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400'
         }`}
-        style={{ opacity: Math.max(0.3, progress), transform: `scale(${0.6 + progress * 0.4})` }}
+        style={{ opacity: Math.max(0.2, progress), transform: `scale(${0.5 + progress * 0.5})` }}
       >
         <RefreshCw
           size={16}
-          className={refreshing ? 'animate-spin' : ''}
-          style={{ transform: `rotate(${progress * 360}deg)` }}
+          className={triggered ? 'animate-spin' : ''}
+          style={!triggered ? { transform: `rotate(${progress * 270}deg)` } : undefined}
         />
       </div>
     </div>

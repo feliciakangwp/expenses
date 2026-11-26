@@ -37,7 +37,7 @@ export function useData() {
       let cats = catRes.data as Category[] | null
       if (!cats || cats.length === 0) {
         const toInsert = DEFAULT_CATEGORIES
-          .filter((c) => c.transaction_type === 'expense' || c.transaction_type === 'income')
+          .filter((c) => c.transaction_type === 'expense')
           .map((c, i) => ({ id: generateId(), user_id: user!.id, ...c, is_system: false, sort_order: i + 1, created_at: nowSGT(), updated_at: nowSGT() }))
         const { data: inserted } = await supabase.from('categories').insert(toInsert as any).select('*')
         cats = inserted as Category[] | null

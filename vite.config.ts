@@ -8,7 +8,7 @@ export default defineConfig({
     tailwindcss(),
     react(),
     VitePWA({
-      registerType: 'prompt',
+      registerType: 'autoUpdate',
       includeAssets: ['favicon.png', 'favicon.ico', 'apple-touch-icon.png', 'icon-*.png', 'pwa-*.png', 'logo.webp'],
       manifest: {
         name: 'Expenses — Personal Finance',
