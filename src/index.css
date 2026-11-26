@@ -48,7 +48,15 @@
   }
 }
 
+@keyframes slide-down {
+  from { transform: translateY(-100%); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
+
 @layer utilities {
+  .animate-slide-down {
+    animation: slide-down 0.25s ease-out;
+  }
   .safe-area-inset-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
