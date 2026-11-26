@@ -6,15 +6,17 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { useAuth } from '@/hooks/useAuth'
+import { useData } from '@/hooks/useData'
 import { cn, generateId } from '@/lib/utils'
 import { isSupabaseConfigured } from '@/lib/supabase'
 
 export function Settings() {
   const {
     user, isDemoMode, theme, setTheme, privacyMode, setPrivacyMode,
-    accentColor, setAccentColor, paymentMethods, addPaymentMethod, removePaymentMethod,
+    accentColor, setAccentColor, paymentMethods,
   } = useAppStore()
   const { signOut } = useAuth()
+  const { savePaymentMethod, deletePaymentMethod } = useData()
   const [signingOut, setSigningOut] = useState(false)
   const [showAddCard, setShowAddCard] = useState(false)
   const [newCardName, setNewCardName] = useState('')
@@ -28,9 +30,9 @@ export function Settings() {
     }
   }
 
-  const handleAddCard = () => {
+  const handleAddCard = async () => {
     if (!newCardName.trim()) return
-    addPaymentMethod({
+    await savePaymentMethod({
       id: generateId(),
       user_id: user?.id ?? 'demo-user',
       name: newCardName.trim(),
@@ -171,7 +173,7 @@ export function Settings() {
                   <CreditCard size={16} className="text-gray-400" />
                   <span className="flex-1 text-sm text-gray-800 dark:text-gray-200">{pm.name}</span>
                   <button
-                    onClick={() => removePaymentMethod(pm.id)}
+                    onClick={() => deletePaymentMethod(pm.id)}
                     className="text-gray-300 dark:text-gray-600 hover:text-red-500 transition-colors"
                   >
                     <Trash2 size={15} />

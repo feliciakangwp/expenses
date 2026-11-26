@@ -10,6 +10,7 @@ export function useData() {
     user, isDemoMode,
     setTransactions, setCategories, setPaymentMethods, setBudgets,
     addTransaction, updateTransaction, deleteTransaction,
+    addPaymentMethod, removePaymentMethod,
     setLoading, loadDemoData,
   } = useAppStore()
 
@@ -209,5 +210,31 @@ export function useData() {
     [isDemoMode, deleteTransaction]
   )
 
-  return { fetchAll, saveTransaction, editTransaction, removeTransaction }
+  const savePaymentMethod = useCallback(
+    async (pm: PaymentMethod): Promise<void> => {
+      if (isDemoMode) {
+        addPaymentMethod(pm)
+        return
+      }
+      const { error } = await supabase.from('payment_methods').insert([pm] as any)
+      if (error) throw error
+      addPaymentMethod(pm)
+    },
+    [isDemoMode, addPaymentMethod]
+  )
+
+  const deletePaymentMethod = useCallback(
+    async (id: string): Promise<void> => {
+      if (isDemoMode) {
+        removePaymentMethod(id)
+        return
+      }
+      const { error } = await supabase.from('payment_methods').delete().eq('id', id)
+      if (error) throw error
+      removePaymentMethod(id)
+    },
+    [isDemoMode, removePaymentMethod]
+  )
+
+  return { fetchAll, saveTransaction, editTransaction, removeTransaction, savePaymentMethod, deletePaymentMethod }
 }
