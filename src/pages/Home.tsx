@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Eye, EyeOff, ChevronDown, ChevronUp } from 'lucide-react'
 import { useAppStore } from '@/store/app'
 import { useData } from '@/hooks/useData'
@@ -10,7 +10,7 @@ import { AmountDisplay } from '@/components/ui/AmountDisplay'
 import { Card } from '@/components/ui/Card'
 import { Sheet } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
-import type { Transaction, Subcategory, RecurringExpense } from '@/types'
+import type { Transaction, Subcategory, RecurringExpense, Frequency } from '@/types'
 import { getMonthRange, generateId, nowSGT } from '@/lib/utils'
 import { format, parseISO, addWeeks, addMonths, addYears } from 'date-fns'
 
@@ -28,23 +28,25 @@ function advanceDate(date: string, freq: 'weekly' | 'biweekly' | 'monthly' | 'qu
 const FREQ_LABELS: Record<string, string> = { weekly: 'Weekly', biweekly: 'Bi-weekly', monthly: 'Monthly', quarterly: 'Quarterly', annual: 'Annually' }
 
 function RecurringWidget() {
-  const { recurringExpenses, updateRecurringExpense, categories } = useAppStore()
+  const { recurringExpenses, updateRecurringExpense, removeRecurringExpense, categories } = useAppStore()
   const { saveTransaction } = useData()
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
+  const [editRec, setEditRec] = useState<RecurringExpense | null>(null)
+  const [editAmount, setEditAmount] = useState('')
+  const [editDate, setEditDate] = useState('')
+  const [editFreq, setEditFreq] = useState<Frequency>('monthly')
+  const [showScope, setShowScope] = useState(false)
   const today = format(new Date(), 'yyyy-MM-dd')
 
-  const active = recurringExpenses.filter((r) => r.is_active)
-  if (active.length === 0) return null
-
-  const overdue = active.filter((r) => r.next_payment_date <= today)
-  const upcoming = active.filter((r) => r.next_payment_date > today)
-
-  const handleRecord = async (rec: RecurringExpense) => {
-    const cat = categories.find((c) => c.id === rec.category_id)
-    if (!cat) return
-    try {
-      await saveTransaction({
+  // Auto-record items that are strictly past their due date (not today — give user the day to edit/skip)
+  useEffect(() => {
+    const { recurringExpenses: allRec, categories: allCats, updateRecurringExpense: update } = useAppStore.getState()
+    const strictlyOverdue = allRec.filter((r) => r.is_active && r.next_payment_date < today)
+    for (const rec of strictlyOverdue) {
+      const cat = allCats.find((c) => c.id === rec.category_id)
+      if (!cat) continue
+      saveTransaction({
         categoryId: rec.category_id,
         subcategoryId: rec.subcategory_id,
         amount: rec.amount,
@@ -54,78 +56,208 @@ function RecurringWidget() {
         notes: '',
         isNeeds: cat.is_needs,
         type: 'expense',
+      }).then(() => {
+        update({ ...rec, next_payment_date: advanceDate(rec.next_payment_date, rec.frequency), updated_at: nowSGT() })
       })
-      updateRecurringExpense({ ...rec, next_payment_date: advanceDate(rec.next_payment_date, rec.frequency), updated_at: nowSGT() })
-      toast(`${rec.name} recorded`, { type: 'success' })
-    } catch {
-      toast('Failed to record', { type: 'error' })
     }
-  }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const active = recurringExpenses.filter((r) => r.is_active)
+  if (active.length === 0) return null
+
+  const overdue = active.filter((r) => r.next_payment_date <= today)
+  const upcoming = active.filter((r) => r.next_payment_date > today)
 
   const handleSkip = (rec: RecurringExpense) => {
     updateRecurringExpense({ ...rec, next_payment_date: advanceDate(rec.next_payment_date, rec.frequency), updated_at: nowSGT() })
     toast(`${rec.name} skipped`, { type: 'info' })
   }
 
-  return (
-    <Card className="mx-4 md:mx-0 overflow-hidden">
-      <button
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-4 py-3"
-      >
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Recurring</span>
-          {overdue.length > 0 && (
-            <span className="text-[10px] font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full">
-              {overdue.length} due
-            </span>
-          )}
-          <span className="text-xs text-gray-400">{active.length} items</span>
-        </div>
-        {open ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
-      </button>
+  const openEdit = (rec: RecurringExpense) => {
+    setEditRec(rec)
+    setEditAmount((rec.amount / 100).toFixed(2))
+    setEditDate(rec.next_payment_date)
+    setEditFreq(rec.frequency)
+  }
 
-      {open && (
-        <div className="border-t border-gray-100 dark:border-gray-800 divide-y divide-gray-50 dark:divide-gray-800/50">
-          {[...overdue, ...upcoming].map((rec) => {
-            const isDue = rec.next_payment_date <= today
-            const cat = categories.find((c) => c.id === rec.category_id)
-            return (
-              <div key={rec.id} className={`px-4 py-3 ${isDue ? 'bg-amber-50 dark:bg-amber-900/10' : ''}`}>
-                <div className="flex items-center gap-3">
-                  {cat && <CategoryIcon icon={cat.icon} color={cat.color} size="sm" />}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{rec.name}</span>
-                      <span className="text-[10px] font-medium text-gray-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded-full flex-shrink-0">{FREQ_LABELS[rec.frequency]}</span>
+  const applyEdit = async (scope: 'this' | 'all') => {
+    if (!editRec) return
+    const cat = categories.find((c) => c.id === editRec.category_id)
+    if (!cat) return
+    const newAmount = Math.round(parseFloat(editAmount) * 100)
+    if (scope === 'this') {
+      try {
+        await saveTransaction({
+          categoryId: editRec.category_id,
+          subcategoryId: editRec.subcategory_id,
+          amount: newAmount,
+          paymentMethodId: editRec.payment_method_id,
+          description: editRec.name,
+          transactionDate: `${editDate}T00:00:00`,
+          notes: '',
+          isNeeds: cat.is_needs,
+          type: 'expense',
+        })
+        updateRecurringExpense({ ...editRec, next_payment_date: advanceDate(editDate, editRec.frequency), updated_at: nowSGT() })
+        toast(`${editRec.name} recorded`, { type: 'success' })
+      } catch {
+        toast('Failed to record', { type: 'error' })
+      }
+    } else {
+      updateRecurringExpense({ ...editRec, amount: newAmount, next_payment_date: editDate, frequency: editFreq, updated_at: nowSGT() })
+      toast(`${editRec.name} updated`, { type: 'success' })
+    }
+    setShowScope(false)
+    setEditRec(null)
+  }
+
+  const handleDelete = (rec: RecurringExpense) => {
+    removeRecurringExpense(rec.id)
+    setEditRec(null)
+    toast(`${rec.name} removed`, { type: 'info' })
+  }
+
+  return (
+    <>
+      <Card className="mx-4 md:mx-0 overflow-hidden">
+        <button
+          onClick={() => setOpen(!open)}
+          className="w-full flex items-center justify-between px-4 py-3"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Recurring</span>
+            {overdue.length > 0 && (
+              <span className="text-[10px] font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full">
+                {overdue.length} due today
+              </span>
+            )}
+            <span className="text-xs text-gray-400">{active.length} items</span>
+          </div>
+          {open ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+        </button>
+
+        {open && (
+          <div className="border-t border-gray-100 dark:border-gray-800 divide-y divide-gray-50 dark:divide-gray-800/50">
+            {[...overdue, ...upcoming].map((rec) => {
+              const isDue = rec.next_payment_date <= today
+              const cat = categories.find((c) => c.id === rec.category_id)
+              return (
+                <div key={rec.id} className={`px-4 py-3 ${isDue ? 'bg-amber-50 dark:bg-amber-900/10' : ''}`}>
+                  <div className="flex items-center gap-3">
+                    {cat && <CategoryIcon icon={cat.icon} color={cat.color} size="sm" />}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{rec.name}</span>
+                        <span className="text-[10px] font-medium text-gray-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded-full flex-shrink-0">{FREQ_LABELS[rec.frequency]}</span>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        ${(rec.amount / 100).toFixed(2)} · {isDue
+                          ? <span className="text-amber-600 dark:text-amber-400">Due {rec.next_payment_date}</span>
+                          : `Next ${rec.next_payment_date}`}
+                      </p>
                     </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      ${(rec.amount / 100).toFixed(2)} · {isDue
-                        ? <span className="text-amber-600 dark:text-amber-400">Due {rec.next_payment_date}</span>
-                        : `Next ${rec.next_payment_date}`}
-                    </p>
-                  </div>
-                  <div className="flex gap-1 flex-shrink-0">
-                    <button
-                      onClick={() => handleRecord(rec)}
-                      className="rounded-lg bg-primary-600 text-white text-xs font-medium px-2.5 py-1.5"
-                    >
-                      Record
-                    </button>
-                    <button
-                      onClick={() => handleSkip(rec)}
-                      className="rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs font-medium px-2.5 py-1.5"
-                    >
-                      Skip
-                    </button>
+                    <div className="flex gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => openEdit(rec)}
+                        className="rounded-lg bg-primary-600 text-white text-xs font-medium px-2.5 py-1.5"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleSkip(rec)}
+                        className="rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs font-medium px-2.5 py-1.5"
+                      >
+                        Skip
+                      </button>
+                    </div>
                   </div>
                 </div>
+              )
+            })}
+          </div>
+        )}
+      </Card>
+
+      {/* Edit Sheet */}
+      <Sheet open={editRec !== null} onClose={() => setEditRec(null)} title="Edit Recurring">
+        {editRec && (
+          <div className="px-5 flex flex-col gap-4 pb-6">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Amount</label>
+              <div className="relative">
+                <span className="absolute left-3 top-2.5 text-gray-400">$</span>
+                <input
+                  type="number" min="0" step="0.01"
+                  value={editAmount}
+                  onChange={(e) => setEditAmount(e.target.value)}
+                  className="w-full rounded-xl bg-gray-50 dark:bg-gray-800 pl-7 pr-3 py-2.5 text-gray-900 dark:text-gray-50 outline-none focus:ring-2 focus:ring-primary-500/50"
+                />
               </div>
-            )
-          })}
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Transaction Date</label>
+              <input
+                type="date"
+                value={editDate}
+                onChange={(e) => setEditDate(e.target.value)}
+                className="w-full rounded-xl bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-gray-900 dark:text-gray-50 outline-none focus:ring-2 focus:ring-primary-500/50"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Frequency</label>
+              <div className="flex flex-wrap gap-2">
+                {(['weekly', 'biweekly', 'monthly', 'quarterly', 'annual'] as const).map((f) => (
+                  <button key={f} onClick={() => setEditFreq(f)}
+                    className={`rounded-xl px-3 py-1.5 text-sm font-medium transition-all ${editFreq === f ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}
+                  >{FREQ_LABELS[f]}</button>
+                ))}
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowScope(true)}
+              disabled={!editAmount || parseFloat(editAmount) <= 0}
+              className="w-full rounded-xl bg-primary-600 text-white py-3 font-medium disabled:opacity-40"
+            >
+              Save Changes
+            </button>
+
+            <button
+              onClick={() => handleDelete(editRec)}
+              className="w-full rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 py-3 font-medium text-sm"
+            >
+              Delete Recurring Schedule
+            </button>
+          </div>
+        )}
+      </Sheet>
+
+      {/* Scope Dialog */}
+      {showScope && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-t-3xl p-6 flex flex-col gap-3">
+            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-50 text-center mb-1">Apply changes to…</h3>
+            <button
+              onClick={() => applyEdit('this')}
+              className="w-full rounded-xl bg-primary-600 text-white py-3.5 font-medium"
+            >
+              This occurrence only
+            </button>
+            <button
+              onClick={() => applyEdit('all')}
+              className="w-full rounded-xl border-2 border-primary-600 text-primary-600 dark:text-primary-400 dark:border-primary-500 py-3.5 font-medium"
+            >
+              All future occurrences
+            </button>
+            <button onClick={() => setShowScope(false)} className="text-sm text-gray-400 py-2 text-center w-full">
+              Cancel
+            </button>
+          </div>
         </div>
       )}
-    </Card>
+    </>
   )
 }
 
