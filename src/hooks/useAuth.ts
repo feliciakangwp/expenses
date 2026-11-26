@@ -32,9 +32,16 @@ export function useAuth() {
     return () => subscription.unsubscribe()
   }, [])
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string, rememberMe = true) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
+    // If "remember me" is off, session expires on browser close (Supabase default is persistent).
+    // We flag it so the app can clear on tab close if needed.
+    if (!rememberMe) {
+      sessionStorage.setItem('session_only', '1')
+    } else {
+      sessionStorage.removeItem('session_only')
+    }
   }
 
   const signUp = async (email: string, password: string, fullName: string) => {

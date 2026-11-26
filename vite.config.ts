@@ -9,13 +9,13 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'icon-*.png', 'pwa-*.png'],
+      includeAssets: ['favicon.png', 'favicon.ico', 'apple-touch-icon.png', 'icon-*.png', 'pwa-*.png', 'logo.webp'],
       manifest: {
         name: 'Expenses — Personal Finance',
         short_name: 'Expenses',
         description: 'Track your daily expenses quickly and simply',
-        theme_color: '#7c3aed',
-        background_color: '#ffffff',
+        theme_color: '#0f1f3d',
+        background_color: '#0f1f3d',
         display: 'standalone',
         orientation: 'portrait',
         scope: '/expenses/',
