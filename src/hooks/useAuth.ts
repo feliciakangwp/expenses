@@ -21,6 +21,7 @@ export function useAuth() {
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (useAppStore.getState().isDemoMode) return
       setUser(session?.user ?? null)
       if (session?.user) {
         fetchAll()

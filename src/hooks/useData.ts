@@ -43,7 +43,37 @@ export function useData() {
           .eq('user_id', user.id),
       ])
 
-      if (catRes.data) setCategories(catRes.data as Category[])
+      let cats = catRes.data as Category[] | null
+      if (cats && cats.length === 0) {
+        // New user — seed default categories
+        const toInsert = DEFAULT_CATEGORIES.map((c, i) => ({
+          id: generateId(),
+          user_id: user!.id,
+          ...c,
+          sort_order: i + 1,
+          created_at: nowSGT(),
+          updated_at: nowSGT(),
+        }))
+        const { data: inserted } = await supabase.from('categories').insert(toInsert).select('*')
+        // Seed subcategories
+        if (inserted) {
+          const subRows = inserted.flatMap((cat: Category) => {
+            const subs = DEFAULT_SUBCATEGORIES[cat.name] ?? []
+            return subs.map((name, idx) => ({
+              id: generateId(),
+              category_id: cat.id,
+              name,
+              sort_order: idx + 1,
+              is_archived: false,
+              created_at: nowSGT(),
+              updated_at: nowSGT(),
+            }))
+          })
+          if (subRows.length > 0) await supabase.from('subcategories').insert(subRows)
+          cats = inserted
+        }
+      }
+      if (cats) setCategories(cats)
       if (txRes.data) setTransactions(txRes.data as Transaction[])
       if (pmRes.data) setPaymentMethods(pmRes.data as PaymentMethod[])
       if (budgetRes.data) setBudgets(budgetRes.data)
