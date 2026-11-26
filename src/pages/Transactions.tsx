@@ -360,7 +360,8 @@ function AddInvestmentSheet({
 // ─── Investments Tab ──────────────────────────────────────────────────────────
 
 function InvestmentsTab() {
-  const { investments, addInvestment, updateInvestment, removeInvestment, user, isDemoMode } = useAppStore()
+  const { investments, user, isDemoMode } = useAppStore()
+  const { saveInvestment, editInvestment, deleteInvestment } = useData()
   const [addOpen, setAddOpen] = useState(false)
   const [editInv, setEditInv] = useState<Investment | null>(null)
   const [sort, setSort] = useState<InvSort>('newest')
@@ -394,7 +395,7 @@ function InvestmentsTab() {
   }, [open, sort])
 
   const handleAddSave = (data: Omit<Investment, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
-    addInvestment({
+    saveInvestment({
       ...data,
       id: generateId(),
       user_id: isDemoMode ? 'demo-user' : (user?.id ?? 'demo-user'),
@@ -405,13 +406,13 @@ function InvestmentsTab() {
 
   const handleEditSave = (data: Omit<Investment, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
     if (!editInv) return
-    updateInvestment({ ...editInv, ...data, updated_at: nowSGT() })
+    editInvestment({ ...editInv, ...data, updated_at: nowSGT() })
     setEditInv(null)
   }
 
   const handleDelete = () => {
     if (!editInv) return
-    removeInvestment(editInv.id)
+    deleteInvestment(editInv.id)
     setEditInv(null)
   }
 

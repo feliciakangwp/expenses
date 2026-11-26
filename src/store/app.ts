@@ -40,9 +40,11 @@ interface AppState {
   removePaymentMethod: (id: string) => void
   setBudgets: (b: Budget[]) => void
   setBudgetForMonth: (year: number, month: number, amount: number) => void
+  setInvestments: (invs: Investment[]) => void
   addInvestment: (inv: Investment) => void
   updateInvestment: (inv: Investment) => void
   removeInvestment: (id: string) => void
+  setRecurringExpenses: (recs: RecurringExpense[]) => void
   addRecurringExpense: (r: RecurringExpense) => void
   updateRecurringExpense: (r: RecurringExpense) => void
   removeRecurringExpense: (id: string) => void
@@ -90,9 +92,11 @@ export const useAppStore = create<AppState>()(
       removePaymentMethod: (id) =>
         set((s) => ({ paymentMethods: s.paymentMethods.filter((p) => p.id !== id) })),
       setBudgets: (budgets) => set({ budgets }),
+      setInvestments: (investments) => set({ investments }),
       addInvestment: (inv) => set((s) => ({ investments: [...s.investments, inv] })),
       updateInvestment: (inv) => set((s) => ({ investments: s.investments.map((i) => (i.id === inv.id ? inv : i)) })),
       removeInvestment: (id) => set((s) => ({ investments: s.investments.filter((i) => i.id !== id) })),
+      setRecurringExpenses: (recurringExpenses) => set({ recurringExpenses }),
       addRecurringExpense: (r) => set((s) => ({ recurringExpenses: [...s.recurringExpenses, r] })),
       updateRecurringExpense: (r) => set((s) => ({ recurringExpenses: s.recurringExpenses.map((x) => (x.id === r.id ? r : x)) })),
       removeRecurringExpense: (id) => set((s) => ({ recurringExpenses: s.recurringExpenses.filter((x) => x.id !== id) })),

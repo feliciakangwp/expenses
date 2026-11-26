@@ -29,8 +29,8 @@ function advanceDate(date: string, freq: 'weekly' | 'biweekly' | 'monthly' | 'qu
 const FREQ_LABELS: Record<string, string> = { weekly: 'Weekly', biweekly: 'Bi-weekly', monthly: 'Monthly', quarterly: 'Quarterly', annual: 'Annually' }
 
 function RecurringWidget() {
-  const { recurringExpenses, updateRecurringExpense, removeRecurringExpense, categories } = useAppStore()
-  const { saveTransaction } = useData()
+  const { recurringExpenses, categories } = useAppStore()
+  const { saveTransaction, editRecurring, deleteRecurring } = useData()
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
   const [editRec, setEditRec] = useState<RecurringExpense | null>(null)
@@ -42,7 +42,7 @@ function RecurringWidget() {
 
   // Auto-record items that are strictly past their due date (not today — give user the day to edit/skip)
   useEffect(() => {
-    const { recurringExpenses: allRec, categories: allCats, updateRecurringExpense: update } = useAppStore.getState()
+    const { recurringExpenses: allRec, categories: allCats } = useAppStore.getState()
     const strictlyOverdue = allRec.filter((r) => r.is_active && r.next_payment_date < today)
     for (const rec of strictlyOverdue) {
       const cat = allCats.find((c) => c.id === rec.category_id)
@@ -58,7 +58,7 @@ function RecurringWidget() {
         isNeeds: cat.is_needs,
         type: 'expense',
       }).then(() => {
-        update({ ...rec, next_payment_date: advanceDate(rec.next_payment_date, rec.frequency), updated_at: nowSGT() })
+        editRecurring({ ...rec, next_payment_date: advanceDate(rec.next_payment_date, rec.frequency), updated_at: nowSGT() })
       })
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -70,7 +70,7 @@ function RecurringWidget() {
   const upcoming = active.filter((r) => r.next_payment_date > today)
 
   const handleSkip = (rec: RecurringExpense) => {
-    updateRecurringExpense({ ...rec, next_payment_date: advanceDate(rec.next_payment_date, rec.frequency), updated_at: nowSGT() })
+    editRecurring({ ...rec, next_payment_date: advanceDate(rec.next_payment_date, rec.frequency), updated_at: nowSGT() })
     toast(`${rec.name} skipped`, { type: 'info' })
   }
 
@@ -99,13 +99,13 @@ function RecurringWidget() {
           isNeeds: cat.is_needs,
           type: 'expense',
         })
-        updateRecurringExpense({ ...editRec, next_payment_date: advanceDate(editDate, editRec.frequency), updated_at: nowSGT() })
+        editRecurring({ ...editRec, next_payment_date: advanceDate(editDate, editRec.frequency), updated_at: nowSGT() })
         toast(`${editRec.name} recorded`, { type: 'success' })
       } catch {
         toast('Failed to record', { type: 'error' })
       }
     } else {
-      updateRecurringExpense({ ...editRec, amount: newAmount, next_payment_date: editDate, frequency: editFreq, updated_at: nowSGT() })
+      editRecurring({ ...editRec, amount: newAmount, next_payment_date: editDate, frequency: editFreq, updated_at: nowSGT() })
       toast(`${editRec.name} updated`, { type: 'success' })
     }
     setShowScope(false)
@@ -113,7 +113,7 @@ function RecurringWidget() {
   }
 
   const handleDelete = (rec: RecurringExpense) => {
-    removeRecurringExpense(rec.id)
+    deleteRecurring(rec.id)
     setEditRec(null)
     toast(`${rec.name} removed`, { type: 'info' })
   }
@@ -267,7 +267,7 @@ export function Home() {
     transactions, categories, paymentMethods, preferences,
     privacyMode, setPrivacyMode, isDemoMode,
   } = useAppStore()
-  const { saveTransaction, removeTransaction } = useData()
+  const { saveTransaction, removeTransaction, saveRecurring } = useData()
   const stats = useStats()
   const { toast } = useToast()
 
@@ -371,7 +371,7 @@ export function Home() {
             updated_at: nowSGT(),
             category: data.category,
           }
-          useAppStore.getState().addRecurringExpense(rec)
+          saveRecurring(rec)
         }
         toast('Expense saved', {
           type: 'success',

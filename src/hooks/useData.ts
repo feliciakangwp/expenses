@@ -1,7 +1,8 @@
 import { useCallback, useEffect } from 'react'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import { useAppStore } from '@/store/app'
-import type { Transaction, Category, Subcategory, PaymentMethod } from '@/types'
+import type { AccentColor } from '@/store/app'
+import type { Transaction, Category, PaymentMethod, Investment, RecurringExpense } from '@/types'
 import { generateId, nowSGT } from '@/lib/utils'
 import { DEFAULT_CATEGORIES, DEFAULT_SUBCATEGORIES } from '@/data/categories'
 
@@ -9,8 +10,12 @@ export function useData() {
   const {
     user, isDemoMode,
     setTransactions, setCategories, setPaymentMethods, setBudgets,
+    setInvestments, setRecurringExpenses,
     addTransaction, updateTransaction, deleteTransaction,
     addPaymentMethod, removePaymentMethod,
+    addInvestment, updateInvestment, removeInvestment,
+    addRecurringExpense, updateRecurringExpense, removeRecurringExpense,
+    setTheme, setAccentColor,
     setLoading, loadDemoData,
   } = useAppStore()
 
@@ -19,45 +24,20 @@ export function useData() {
 
     setLoading(true)
     try {
-      const [catRes, txRes, pmRes, budgetRes] = await Promise.all([
-        supabase
-          .from('categories')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('is_archived', false)
-          .order('sort_order'),
-        supabase
-          .from('transactions')
-          .select('*, category:categories(*), payment_method:payment_methods(*)')
-          .eq('user_id', user.id)
-          .order('transaction_date', { ascending: false })
-          .limit(500),
-        supabase
-          .from('payment_methods')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('is_archived', false)
-          .order('sort_order'),
-        supabase
-          .from('budgets')
-          .select('*')
-          .eq('user_id', user.id),
+      const [catRes, txRes, pmRes, budgetRes, invRes, recRes] = await Promise.all([
+        supabase.from('categories').select('*').eq('user_id', user.id).eq('is_archived', false).order('sort_order'),
+        supabase.from('transactions').select('*, category:categories(*), payment_method:payment_methods(*)').eq('user_id', user.id).order('transaction_date', { ascending: false }).limit(500),
+        supabase.from('payment_methods').select('*').eq('user_id', user.id).eq('is_archived', false).order('sort_order'),
+        supabase.from('budgets').select('*').eq('user_id', user.id),
+        supabase.from('investments').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+        supabase.from('recurring_expenses').select('*').eq('user_id', user.id).eq('is_active', true),
       ])
 
       let cats = catRes.data as Category[] | null
       if (!cats || cats.length === 0) {
-        // New user — seed default categories
         const toInsert = DEFAULT_CATEGORIES
           .filter((c) => c.transaction_type === 'expense' || c.transaction_type === 'income')
-          .map((c, i) => ({
-            id: generateId(),
-            user_id: user!.id,
-            ...c,
-            is_system: false,
-            sort_order: i + 1,
-            created_at: nowSGT(),
-            updated_at: nowSGT(),
-          }))
+          .map((c, i) => ({ id: generateId(), user_id: user!.id, ...c, is_system: false, sort_order: i + 1, created_at: nowSGT(), updated_at: nowSGT() }))
         const { data: inserted } = await supabase.from('categories').insert(toInsert as any).select('*')
         cats = inserted as Category[] | null
       }
@@ -65,6 +45,13 @@ export function useData() {
       if (txRes.data) setTransactions(txRes.data as Transaction[])
       if (pmRes.data) setPaymentMethods(pmRes.data as PaymentMethod[])
       if (budgetRes.data) setBudgets(budgetRes.data)
+      if (invRes.data) setInvestments(invRes.data as Investment[])
+      if (recRes.data) setRecurringExpenses(recRes.data as RecurringExpense[])
+
+      // Load theme/accentColor from user metadata
+      const meta = user.user_metadata
+      if (meta?.theme) setTheme(meta.theme)
+      if (meta?.accentColor) setAccentColor(meta.accentColor as AccentColor)
     } finally {
       setLoading(false)
     }
@@ -236,5 +223,101 @@ export function useData() {
     [isDemoMode, removePaymentMethod]
   )
 
-  return { fetchAll, saveTransaction, editTransaction, removeTransaction, savePaymentMethod, deletePaymentMethod }
+  // Budget
+  const saveBudget = useCallback(
+    async (year: number, month: number, amount: number): Promise<void> => {
+      const store = useAppStore.getState()
+      const existing = store.budgets.find((b) => !b.category_id && b.period === 'monthly' && b.year === year && b.month === month)
+      if (isDemoMode) { store.setBudgetForMonth(year, month, amount); return }
+      if (existing) {
+        await (supabase.from('budgets') as any).update({ amount, updated_at: nowSGT() }).eq('id', existing.id)
+      } else {
+        const row = { id: generateId(), user_id: user!.id, category_id: null, amount, period: 'monthly', year, month, created_at: nowSGT(), updated_at: nowSGT() }
+        await supabase.from('budgets').insert([row] as any)
+      }
+      store.setBudgetForMonth(year, month, amount)
+    },
+    [isDemoMode, user]
+  )
+
+  // Investments
+  const saveInvestment = useCallback(
+    async (inv: Investment): Promise<void> => {
+      if (isDemoMode) { addInvestment(inv); return }
+      const { error } = await supabase.from('investments').insert([inv] as any)
+      if (error) throw error
+      addInvestment(inv)
+    },
+    [isDemoMode, addInvestment]
+  )
+
+  const editInvestment = useCallback(
+    async (inv: Investment): Promise<void> => {
+      if (isDemoMode) { updateInvestment(inv); return }
+      const { error } = await (supabase.from('investments') as any).update({ ...inv, updated_at: nowSGT() }).eq('id', inv.id)
+      if (error) throw error
+      updateInvestment(inv)
+    },
+    [isDemoMode, updateInvestment]
+  )
+
+  const deleteInvestment = useCallback(
+    async (id: string): Promise<void> => {
+      if (isDemoMode) { removeInvestment(id); return }
+      const { error } = await supabase.from('investments').delete().eq('id', id)
+      if (error) throw error
+      removeInvestment(id)
+    },
+    [isDemoMode, removeInvestment]
+  )
+
+  // Recurring expenses
+  const saveRecurring = useCallback(
+    async (rec: RecurringExpense): Promise<void> => {
+      if (isDemoMode) { addRecurringExpense(rec); return }
+      const { error } = await supabase.from('recurring_expenses').insert([rec] as any)
+      if (error) throw error
+      addRecurringExpense(rec)
+    },
+    [isDemoMode, addRecurringExpense]
+  )
+
+  const editRecurring = useCallback(
+    async (rec: RecurringExpense): Promise<void> => {
+      if (isDemoMode) { updateRecurringExpense(rec); return }
+      const { error } = await (supabase.from('recurring_expenses') as any).update({ ...rec, updated_at: nowSGT() }).eq('id', rec.id)
+      if (error) throw error
+      updateRecurringExpense(rec)
+    },
+    [isDemoMode, updateRecurringExpense]
+  )
+
+  const deleteRecurring = useCallback(
+    async (id: string): Promise<void> => {
+      if (isDemoMode) { removeRecurringExpense(id); return }
+      const { error } = await supabase.from('recurring_expenses').delete().eq('id', id)
+      if (error) throw error
+      removeRecurringExpense(id)
+    },
+    [isDemoMode, removeRecurringExpense]
+  )
+
+  // Preferences — save theme/accentColor to Supabase user metadata
+  const savePreferences = useCallback(
+    async (prefs: { theme?: string; accentColor?: string }): Promise<void> => {
+      if (isDemoMode || !isSupabaseConfigured) return
+      await supabase.auth.updateUser({ data: { ...user?.user_metadata, ...prefs } })
+    },
+    [isDemoMode, user]
+  )
+
+  return {
+    fetchAll,
+    saveTransaction, editTransaction, removeTransaction,
+    savePaymentMethod, deletePaymentMethod,
+    saveBudget,
+    saveInvestment, editInvestment, deleteInvestment,
+    saveRecurring, editRecurring, deleteRecurring,
+    savePreferences,
+  }
 }

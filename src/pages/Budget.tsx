@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Plus, Pencil, Target } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
 import { useAppStore } from '@/store/app'
+import { useData } from '@/hooks/useData'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { AmountDisplay } from '@/components/ui/AmountDisplay'
@@ -12,7 +13,8 @@ import { format } from 'date-fns'
 const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
 export function Budget() {
-  const { transactions, budgets, setBudgetForMonth } = useAppStore()
+  const { transactions, budgets } = useAppStore()
+  const { saveBudget } = useData()
 
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
@@ -51,10 +53,10 @@ export function Budget() {
   const barColor = pct >= 100 ? 'bg-red-500' : pct >= 75 ? 'bg-amber-500' : 'bg-emerald-500'
   const statusColor = pct >= 100 ? 'text-red-500' : pct >= 75 ? 'text-amber-500' : 'text-emerald-600'
 
-  const handleSaveBudget = () => {
+  const handleSaveBudget = async () => {
     const amount = Math.round(parseFloat(budgetInput) * 100)
     if (amount > 0) {
-      setBudgetForMonth(year, month, amount)
+      await saveBudget(year, month, amount)
       setEditing(false)
       setBudgetInput('')
     }

@@ -16,7 +16,7 @@ export function Settings() {
     accentColor, setAccentColor, paymentMethods,
   } = useAppStore()
   const { signOut } = useAuth()
-  const { savePaymentMethod, deletePaymentMethod } = useData()
+  const { savePaymentMethod, deletePaymentMethod, savePreferences } = useData()
   const [signingOut, setSigningOut] = useState(false)
   const [showAddCard, setShowAddCard] = useState(false)
   const [newCardName, setNewCardName] = useState('')
@@ -98,7 +98,7 @@ export function Settings() {
             {THEMES.map(({ value, label, icon: Icon }) => (
               <button
                 key={value}
-                onClick={() => setTheme(value)}
+                onClick={() => { setTheme(value); savePreferences({ theme: value }) }}
                 className={cn(
                   'flex flex-col items-center gap-1.5 rounded-xl p-3 transition-all',
                   theme === value
@@ -141,7 +141,7 @@ export function Settings() {
             {ACCENT_COLORS.map(({ value, bg, label }) => (
               <button
                 key={value}
-                onClick={() => setAccentColor(value)}
+                onClick={() => { setAccentColor(value); savePreferences({ accentColor: value }) }}
                 title={label}
                 className={cn(
                   'h-9 w-full rounded-xl transition-all',
