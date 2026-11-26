@@ -11,6 +11,7 @@ import { Budget } from '@/pages/Budget'
 import { Settings } from '@/pages/Settings'
 import { Auth } from '@/pages/Auth'
 import { isSupabaseConfigured } from '@/lib/supabase'
+import { UpdateBanner } from '@/components/ui/UpdateBanner'
 
 const COLOR_PALETTES: Record<string, Record<string, string>> = {
   purple: { '50':'#f5f3ff','100':'#ede9fe','200':'#ddd6fe','300':'#c4b5fd','400':'#a78bfa','500':'#8b5cf6','600':'#7c3aed','700':'#6d28d9','800':'#5b21b6','900':'#4c1d95','950':'#2e1065' },
@@ -55,6 +56,7 @@ function AppContent() {
 
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950">
+      <UpdateBanner />
       {/* Sidebar — desktop */}
       <SideNav />
 

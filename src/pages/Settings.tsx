@@ -51,18 +51,16 @@ export function Settings() {
   const [newCardName, setNewCardName] = useState('')
 
   // Categories state
-  const [catTab, setCatTab] = useState<'expense' | 'income'>('expense')
   const [editingCat, setEditingCat] = useState<Category | null>(null)
   const [showCatForm, setShowCatForm] = useState(false)
   const [catForm, setCatForm] = useState({ name: '', icon: 'circle-ellipsis', color: '#6366f1', type: 'expense' as 'expense' | 'income' })
   const [showIconPicker, setShowIconPicker] = useState(false)
 
   const expenseCategories = categories.filter((c) => !c.is_archived && c.transaction_type === 'expense')
-  const incomeCategories = categories.filter((c) => !c.is_archived && c.transaction_type === 'income')
 
   const openAddCat = () => {
     setEditingCat(null)
-    setCatForm({ name: '', icon: 'circle-ellipsis', color: '#6366f1', type: catTab })
+    setCatForm({ name: '', icon: 'circle-ellipsis', color: '#6366f1', type: 'expense' })
     setShowCatForm(true)
     setShowIconPicker(false)
   }
@@ -295,27 +293,9 @@ export function Settings() {
             <button onClick={openAddCat} className="text-xs font-medium text-primary-600 dark:text-primary-400">+ Add</button>
           </div>
 
-          {/* Tab switcher */}
-          <div className="flex px-4 pt-3 gap-2">
-            {(['expense', 'income'] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => setCatTab(t)}
-                className={cn(
-                  'flex-1 py-1.5 rounded-lg text-xs font-medium transition-all',
-                  catTab === t
-                    ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300'
-                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
-                )}
-              >
-                {t === 'expense' ? 'Expense' : 'Income'}
-              </button>
-            ))}
-          </div>
-
           {/* Category list */}
-          <div className="divide-y divide-gray-50 dark:divide-gray-800/50 mt-2">
-            {(catTab === 'expense' ? expenseCategories : incomeCategories).map((cat) => (
+          <div className="divide-y divide-gray-50 dark:divide-gray-800/50 mt-1">
+            {expenseCategories.map((cat) => (
               <div key={cat.id} className="flex items-center gap-3 px-4 py-2.5">
                 <CategoryIcon icon={cat.icon} color={cat.color} size="sm" />
                 <span className="flex-1 text-sm text-gray-800 dark:text-gray-200">{cat.name}</span>
@@ -327,8 +307,8 @@ export function Settings() {
                 </button>
               </div>
             ))}
-            {(catTab === 'expense' ? expenseCategories : incomeCategories).length === 0 && (
-              <div className="px-4 py-6 text-center text-sm text-gray-400">No {catTab} categories yet</div>
+            {expenseCategories.length === 0 && (
+              <div className="px-4 py-6 text-center text-sm text-gray-400">No expense categories yet</div>
             )}
           </div>
 
@@ -338,26 +318,6 @@ export function Settings() {
               <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-3">
                 {editingCat ? 'Edit Category' : 'New Category'}
               </p>
-
-              {/* Type (only for new) */}
-              {!editingCat && (
-                <div className="flex gap-2 mb-3">
-                  {(['expense', 'income'] as const).map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setCatForm((f) => ({ ...f, type: t }))}
-                      className={cn(
-                        'flex-1 py-1.5 rounded-lg text-xs font-medium transition-all border',
-                        catForm.type === t
-                          ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 border-primary-300 dark:border-primary-700'
-                          : 'text-gray-500 border-gray-200 dark:border-gray-700 dark:text-gray-400'
-                      )}
-                    >
-                      {t === 'expense' ? 'Expense' : 'Income'}
-                    </button>
-                  ))}
-                </div>
-              )}
 
               {/* Name input */}
               <input
