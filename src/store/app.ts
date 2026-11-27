@@ -162,6 +162,7 @@ export const useAppStore = create<AppState>()(
           paymentMethods: [],
           budgets: [],
           investments: [],
+          recurringExpenses: [],
           preferences: null,
         }),
     }),

@@ -21,24 +21,26 @@ export function useData() {
   } = useAppStore()
 
   const fetchAll = useCallback(async () => {
-    if (isDemoMode || !isSupabaseConfigured || !user) return
+    // Always read user from store at call time — avoids stale closure when called from useAuth's onAuthStateChange
+    const currentUser = useAppStore.getState().user
+    if (isDemoMode || !isSupabaseConfigured || !currentUser) return
 
     setLoading(true)
     try {
       const [catRes, txRes, pmRes, budgetRes, invRes, recRes] = await Promise.all([
-        supabase.from('categories').select('*').eq('user_id', user.id).eq('is_archived', false).order('sort_order'),
-        supabase.from('transactions').select('*, category:categories(*), payment_method:payment_methods(*)').eq('user_id', user.id).order('transaction_date', { ascending: false }).limit(500),
-        supabase.from('payment_methods').select('*').eq('user_id', user.id).eq('is_archived', false).order('sort_order'),
-        supabase.from('budgets').select('*').eq('user_id', user.id),
-        supabase.from('investments').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
-        supabase.from('recurring_expenses').select('*').eq('user_id', user.id).eq('is_active', true),
+        supabase.from('categories').select('*').eq('user_id', currentUser.id).eq('is_archived', false).order('sort_order'),
+        supabase.from('transactions').select('*, category:categories(*), payment_method:payment_methods(*)').eq('user_id', currentUser.id).order('transaction_date', { ascending: false }).limit(500),
+        supabase.from('payment_methods').select('*').eq('user_id', currentUser.id).eq('is_archived', false).order('sort_order'),
+        supabase.from('budgets').select('*').eq('user_id', currentUser.id),
+        supabase.from('investments').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }),
+        supabase.from('recurring_expenses').select('*').eq('user_id', currentUser.id).eq('is_active', true),
       ])
 
       let cats = catRes.data as Category[] | null
       if (!cats || cats.length === 0) {
         const toInsert = DEFAULT_CATEGORIES
           .filter((c) => c.transaction_type === 'expense')
-          .map((c, i) => ({ id: generateId(), user_id: user!.id, ...c, is_system: false, sort_order: i + 1, created_at: nowSGT(), updated_at: nowSGT() }))
+          .map((c, i) => ({ id: generateId(), user_id: currentUser.id, ...c, is_system: false, sort_order: i + 1, created_at: nowSGT(), updated_at: nowSGT() }))
         const { data: inserted } = await supabase.from('categories').insert(toInsert as any).select('*')
         cats = inserted as Category[] | null
       }
@@ -50,13 +52,13 @@ export function useData() {
       if (recRes.data) setRecurringExpenses(recRes.data as RecurringExpense[])
 
       // Load theme/accentColor from user metadata
-      const meta = user.user_metadata
+      const meta = currentUser.user_metadata
       if (meta?.theme) setTheme(meta.theme)
       if (meta?.accentColor) setAccentColor(meta.accentColor as AccentColor)
     } finally {
       setLoading(false)
     }
-  }, [isDemoMode, user, setCategories, setTransactions, setPaymentMethods, setBudgets, setLoading])
+  }, [isDemoMode, setCategories, setTransactions, setPaymentMethods, setBudgets, setInvestments, setRecurringExpenses, setTheme, setAccentColor, setLoading])
 
   const saveTransaction = useCallback(
     async (data: {
