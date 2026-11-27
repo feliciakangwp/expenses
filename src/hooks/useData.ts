@@ -241,64 +241,64 @@ export function useData() {
     [isDemoMode, user]
   )
 
-  // Investments
+  // Investments — optimistic: update store first so UI responds immediately
   const saveInvestment = useCallback(
     async (inv: Investment): Promise<void> => {
-      if (isDemoMode) { addInvestment(inv); return }
-      const { error } = await supabase.from('investments').insert([inv] as any)
-      if (error) throw error
       addInvestment(inv)
+      if (isDemoMode) return
+      const { error } = await supabase.from('investments').insert([inv] as any)
+      if (error) console.error('saveInvestment:', error)
     },
     [isDemoMode, addInvestment]
   )
 
   const editInvestment = useCallback(
     async (inv: Investment): Promise<void> => {
-      if (isDemoMode) { updateInvestment(inv); return }
-      const { error } = await (supabase.from('investments') as any).update({ ...inv, updated_at: nowSGT() }).eq('id', inv.id)
-      if (error) throw error
       updateInvestment(inv)
+      if (isDemoMode) return
+      const { error } = await (supabase.from('investments') as any).update({ ...inv, updated_at: nowSGT() }).eq('id', inv.id)
+      if (error) console.error('editInvestment:', error)
     },
     [isDemoMode, updateInvestment]
   )
 
   const deleteInvestment = useCallback(
     async (id: string): Promise<void> => {
-      if (isDemoMode) { removeInvestment(id); return }
-      const { error } = await supabase.from('investments').delete().eq('id', id)
-      if (error) throw error
       removeInvestment(id)
+      if (isDemoMode) return
+      const { error } = await supabase.from('investments').delete().eq('id', id)
+      if (error) console.error('deleteInvestment:', error)
     },
     [isDemoMode, removeInvestment]
   )
 
-  // Recurring expenses
+  // Recurring expenses — optimistic
   const saveRecurring = useCallback(
     async (rec: RecurringExpense): Promise<void> => {
-      if (isDemoMode) { addRecurringExpense(rec); return }
-      const { error } = await supabase.from('recurring_expenses').insert([rec] as any)
-      if (error) throw error
       addRecurringExpense(rec)
+      if (isDemoMode) return
+      const { error } = await supabase.from('recurring_expenses').insert([rec] as any)
+      if (error) console.error('saveRecurring:', error)
     },
     [isDemoMode, addRecurringExpense]
   )
 
   const editRecurring = useCallback(
     async (rec: RecurringExpense): Promise<void> => {
-      if (isDemoMode) { updateRecurringExpense(rec); return }
-      const { error } = await (supabase.from('recurring_expenses') as any).update({ ...rec, updated_at: nowSGT() }).eq('id', rec.id)
-      if (error) throw error
       updateRecurringExpense(rec)
+      if (isDemoMode) return
+      const { error } = await (supabase.from('recurring_expenses') as any).update({ ...rec, updated_at: nowSGT() }).eq('id', rec.id)
+      if (error) console.error('editRecurring:', error)
     },
     [isDemoMode, updateRecurringExpense]
   )
 
   const deleteRecurring = useCallback(
     async (id: string): Promise<void> => {
-      if (isDemoMode) { removeRecurringExpense(id); return }
-      const { error } = await supabase.from('recurring_expenses').delete().eq('id', id)
-      if (error) throw error
       removeRecurringExpense(id)
+      if (isDemoMode) return
+      const { error } = await supabase.from('recurring_expenses').delete().eq('id', id)
+      if (error) console.error('deleteRecurring:', error)
     },
     [isDemoMode, removeRecurringExpense]
   )
