@@ -12,11 +12,12 @@ interface TransactionDetailProps {
   recurringFrequency?: string
   onEdit?: () => void
   onDelete?: () => void
+  onDeleteAndStop?: () => void
   onDuplicate?: () => void
   onClose: () => void
 }
 
-export function TransactionDetail({ transaction: t, recurringFrequency, onEdit, onDelete, onDuplicate, onClose }: TransactionDetailProps) {
+export function TransactionDetail({ transaction: t, recurringFrequency, onEdit, onDelete, onDeleteAndStop, onDuplicate, onClose }: TransactionDetailProps) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const cat = t.category
 
@@ -66,37 +67,60 @@ export function TransactionDetail({ transaction: t, recurringFrequency, onEdit, 
         </div>
       )}
 
+      {/* Recurring delete note */}
+      {confirmDelete && t.is_recurring && (
+        <div className="mb-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 px-4 py-3">
+          <p className="text-xs font-medium text-amber-800 dark:text-amber-300 mb-0.5">Recurring schedule not affected</p>
+          <p className="text-xs text-amber-700 dark:text-amber-400">Only this transaction will be deleted. Future payments will continue as scheduled.</p>
+        </div>
+      )}
+
       {/* Actions */}
-      <div className="flex gap-2">
-        {onDuplicate && (
-          <Button variant="secondary" size="sm" onClick={onDuplicate} className="flex-1 gap-1.5">
-            <Copy size={14} />
-            Duplicate
-          </Button>
-        )}
-        {onEdit && (
-          <Button variant="secondary" size="sm" onClick={onEdit} className="flex-1 gap-1.5">
-            <Edit3 size={14} />
-            Edit
-          </Button>
-        )}
-        {onDelete && (
+      <div className="flex flex-col gap-2">
+        <div className="flex gap-2">
+          {onDuplicate && (
+            <Button variant="secondary" size="sm" onClick={onDuplicate} className="flex-1 gap-1.5">
+              <Copy size={14} />
+              Duplicate
+            </Button>
+          )}
+          {onEdit && (
+            <Button variant="secondary" size="sm" onClick={onEdit} className="flex-1 gap-1.5">
+              <Edit3 size={14} />
+              Edit
+            </Button>
+          )}
+          {onDelete && (
+            <Button
+              variant={confirmDelete ? 'danger' : 'ghost'}
+              size="sm"
+              onClick={() => {
+                if (confirmDelete) {
+                  onDelete()
+                  onClose()
+                } else {
+                  setConfirmDelete(true)
+                  setTimeout(() => setConfirmDelete(false), 3000)
+                }
+              }}
+              className={cn('gap-1.5', !onEdit && !onDuplicate && 'flex-1')}
+            >
+              <Trash2 size={14} />
+              {confirmDelete ? 'Delete this only' : 'Delete'}
+            </Button>
+          )}
+        </div>
+
+        {/* Delete + stop recurring — shown only in confirm state for recurring transactions */}
+        {confirmDelete && t.is_recurring && onDeleteAndStop && (
           <Button
-            variant={confirmDelete ? 'danger' : 'ghost'}
+            variant="danger"
             size="sm"
-            onClick={() => {
-              if (confirmDelete) {
-                onDelete()
-                onClose()
-              } else {
-                setConfirmDelete(true)
-                setTimeout(() => setConfirmDelete(false), 3000)
-              }
-            }}
-            className={cn('gap-1.5', !onEdit && !onDuplicate && 'flex-1')}
+            onClick={() => { onDeleteAndStop(); onClose() }}
+            className="w-full gap-1.5"
           >
             <Trash2 size={14} />
-            {confirmDelete ? 'Confirm' : 'Delete'}
+            Delete + stop recurring schedule
           </Button>
         )}
       </div>

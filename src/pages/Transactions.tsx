@@ -911,6 +911,16 @@ export function Transactions() {
     })
   }
 
+  const handleDeleteAndStop = (tx: Transaction) => {
+    removeTransaction(tx.id)
+    if (tx.recurring_expense_id) {
+      const existing = recurringExpenses.find((r) => r.id === tx.recurring_expense_id)
+      if (existing) editRecurring({ ...existing, is_active: false, updated_at: nowSGT() })
+    }
+    setSelectedTx(null)
+    toast('Transaction deleted and recurring schedule stopped', { type: 'info' })
+  }
+
   const handleEditTx = async (data: Partial<Transaction> & { recurringFrequency: Frequency; recurringEndDate: string | null }) => {
     if (!selectedTx) return
     const { recurringFrequency, recurringEndDate, ...txData } = data
@@ -1192,6 +1202,7 @@ export function Transactions() {
             }
             onEdit={() => setTxEditMode(true)}
             onDelete={() => handleDelete(selectedTx)}
+            onDeleteAndStop={selectedTx.recurring_expense_id ? () => handleDeleteAndStop(selectedTx) : undefined}
             onClose={() => { setSelectedTx(null); setTxEditMode(false) }}
           />
         )}
