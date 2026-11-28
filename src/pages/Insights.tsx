@@ -321,35 +321,6 @@ export function Insights() {
           </div>
         </Card>
 
-        {/* Spending by Category — Donut */}
-        {pieData.length > 0 && (
-          <Card className="p-4">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Spending by Category</h3>
-            <div className="flex flex-col items-center gap-4">
-              <ResponsiveContainer width={160} height={160}>
-                <PieChart>
-                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={72} dataKey="value" paddingAngle={2}>
-                    {pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="w-full grid grid-cols-2 gap-x-4 gap-y-2">
-                {pieData.slice(0, 6).map((d) => {
-                  const cs = catSpending.find((x) => x.category.name === d.name)
-                  return (
-                    <div key={d.name} className="flex items-center gap-2 min-w-0">
-                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: d.color }} />
-                      <span className="text-xs text-gray-600 dark:text-gray-400 truncate">{d.name}</span>
-                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300 flex-shrink-0 ml-auto">
-                        {cs ? `${cs.percentage.toFixed(0)}%` : ''}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </Card>
-        )}
 
         {/* Spending Trend */}
         {trendData.length > 1 && (
@@ -489,13 +460,40 @@ export function Insights() {
           </Card>
         )}
 
-        {/* Category Breakdown */}
+        {/* Spending by Category — merged donut + breakdown */}
         {catSpending.length > 0 && (
           <Card className="md:col-span-2">
             <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Category Breakdown</h3>
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Spending by Category</h3>
               <p className="text-xs text-gray-400 mt-0.5">Tap a category to see its transactions</p>
             </div>
+
+            {/* Donut chart */}
+            <div className="flex justify-center pt-5 pb-2">
+              <div className="relative" style={{ width: 160, height: 160 }}>
+                <ResponsiveContainer width={160} height={160}>
+                  <PieChart>
+                    <Pie
+                      data={pieData} cx="50%" cy="50%"
+                      innerRadius={50} outerRadius={72}
+                      dataKey="value" paddingAngle={pieData.length > 1 ? 2 : 0} strokeWidth={0}
+                    >
+                      {pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                    </Pie>
+                    <Tooltip
+                      formatter={(v) => [privacyMode ? '••••' : `$${Number(v).toFixed(2)}`, 'Spent']}
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', fontSize: '12px' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-xs text-gray-400">Total</span>
+                  <AmountDisplay cents={totalSpend} size="md" />
+                </div>
+              </div>
+            </div>
+
+            {/* Category rows with progress bars */}
             <div className="divide-y divide-gray-50 dark:divide-gray-800/50">
               {catSpending.map((cs) => (
                 <button
