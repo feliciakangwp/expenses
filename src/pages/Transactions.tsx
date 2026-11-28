@@ -40,7 +40,7 @@ function EditTransactionForm({
   onCancel,
 }: {
   transaction: Transaction
-  onSave: (data: Partial<Transaction> & { recurringFrequency: Frequency }) => Promise<void>
+  onSave: (data: Partial<Transaction> & { recurringFrequency: Frequency; recurringEndDate: string | null }) => Promise<void>
   onStopRecurring?: () => Promise<void>
   onCancel: () => void
 }) {
@@ -55,6 +55,7 @@ function EditTransactionForm({
   const [paymentMethodId, setPaymentMethodId] = useState<string | null>(t.payment_method_id)
   const [isRecurring, setIsRecurring] = useState(t.is_recurring)
   const [recurringFreq, setRecurringFreq] = useState<Frequency>(linkedRec?.frequency ?? 'monthly')
+  const [recurringEndDate, setRecurringEndDate] = useState<string>(linkedRec?.end_date ?? '')
   const [saving, setSaving] = useState(false)
   const [stopping, setStopping] = useState(false)
 
@@ -68,6 +69,7 @@ function EditTransactionForm({
         payment_method_id: paymentMethodId,
         is_recurring: isRecurring,
         recurringFrequency: recurringFreq,
+        recurringEndDate: recurringEndDate || null,
       })
     } finally {
       setSaving(false)
@@ -162,23 +164,52 @@ function EditTransactionForm({
           </div>
         </button>
 
-        {/* Frequency selector */}
+        {/* Frequency selector + end date */}
         {isRecurring && (
-          <div className="flex gap-2 flex-wrap px-1">
-            {(['weekly', 'biweekly', 'monthly', 'quarterly', 'annual'] as const).map((f) => (
-              <button
-                key={f}
-                type="button"
-                onClick={() => setRecurringFreq(f)}
-                className={`rounded-xl px-3 py-1.5 text-xs font-medium capitalize transition-all ${
-                  recurringFreq === f
-                    ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300'
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
-                }`}
-              >
-                {f}
-              </button>
-            ))}
+          <div className="flex flex-col gap-2 px-1">
+            <div className="flex gap-2 flex-wrap">
+              {(['weekly', 'biweekly', 'monthly', 'quarterly', 'annual'] as const).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setRecurringFreq(f)}
+                  className={`rounded-xl px-3 py-1.5 text-xs font-medium capitalize transition-all ${
+                    recurringFreq === f
+                      ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+                  }`}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                Last payment date (optional)
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={recurringEndDate}
+                  onChange={(e) => setRecurringEndDate(e.target.value)}
+                  className="flex-1 rounded-xl bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-50 outline-none focus:ring-2 focus:ring-primary-500/50"
+                />
+                {recurringEndDate && (
+                  <button
+                    type="button"
+                    onClick={() => setRecurringEndDate('')}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+              {recurringEndDate && (
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                  Recurring stops after {recurringEndDate}
+                </p>
+              )}
+            </div>
           </div>
         )}
 
@@ -880,13 +911,14 @@ export function Transactions() {
     })
   }
 
-  const handleEditTx = async (data: Partial<Transaction> & { recurringFrequency: Frequency }) => {
+  const handleEditTx = async (data: Partial<Transaction> & { recurringFrequency: Frequency; recurringEndDate: string | null }) => {
     if (!selectedTx) return
-    const { recurringFrequency, ...txData } = data
+    const { recurringFrequency, recurringEndDate, ...txData } = data
     const wasRecurring = selectedTx.is_recurring
     const isNowRecurring = txData.is_recurring ?? wasRecurring
     let recurringExpenseId = selectedTx.recurring_expense_id
 
+    // Turning recurring ON — create a new RecurringExpense
     if (!wasRecurring && isNowRecurring && !recurringExpenseId) {
       const freq = recurringFrequency ?? 'monthly'
       const txDate = (txData.transaction_date ?? selectedTx.transaction_date).split('T')[0]
@@ -901,7 +933,7 @@ export function Transactions() {
         payment_method_id: txData.payment_method_id !== undefined ? txData.payment_method_id : selectedTx.payment_method_id,
         frequency: freq,
         next_payment_date: advanceDate(txDate, freq),
-        end_date: null,
+        end_date: recurringEndDate,
         is_active: true,
         auto_record: false,
         notes: null,
@@ -913,10 +945,28 @@ export function Transactions() {
       recurringExpenseId = rec.id
     }
 
+    // Turning recurring OFF — deactivate existing
     if (wasRecurring && !isNowRecurring && selectedTx.recurring_expense_id) {
       const existing = recurringExpenses.find((r) => r.id === selectedTx.recurring_expense_id)
       if (existing) await editRecurring({ ...existing, is_active: false, updated_at: nowSGT() })
       recurringExpenseId = null
+    }
+
+    // Still recurring — update frequency or end_date if changed
+    if (wasRecurring && isNowRecurring && selectedTx.recurring_expense_id) {
+      const existing = recurringExpenses.find((r) => r.id === selectedTx.recurring_expense_id)
+      if (existing) {
+        const freqChanged = recurringFrequency && recurringFrequency !== existing.frequency
+        const endDateChanged = recurringEndDate !== (existing.end_date ?? '')
+        if (freqChanged || endDateChanged) {
+          await editRecurring({
+            ...existing,
+            frequency: recurringFrequency ?? existing.frequency,
+            end_date: recurringEndDate,
+            updated_at: nowSGT(),
+          })
+        }
+      }
     }
 
     await editTransaction(selectedTx.id, { ...txData, recurring_expense_id: recurringExpenseId })
