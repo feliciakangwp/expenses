@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { subMonths, startOfMonth, endOfMonth, format, parseISO, eachDayOfInterval } from 'date-fns'
-import { ChevronRight, X } from 'lucide-react'
+import { ChevronRight, X, RefreshCw } from 'lucide-react'
 
 const PM_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#3b82f6', '#ec4899', '#14b8a6', '#f97316', '#a855f7']
 import { useAppStore } from '@/store/app'
@@ -20,8 +20,22 @@ const RANGES: { value: RangeMonths; label: string }[] = [
   { value: 12, label: '12M' },
 ]
 
+const FREQ_LABEL: Record<string, string> = {
+  weekly: 'Weekly', biweekly: 'Biweekly', monthly: 'Monthly',
+  quarterly: 'Quarterly', annual: 'Annual',
+}
+
+const toMonthly = (amount: number, freq: string): number => {
+  if (freq === 'weekly') return (amount * 52) / 12
+  if (freq === 'biweekly') return (amount * 26) / 12
+  if (freq === 'monthly') return amount
+  if (freq === 'quarterly') return amount / 3
+  if (freq === 'annual') return amount / 12
+  return amount
+}
+
 export function Insights() {
-  const { transactions, privacyMode } = useAppStore()
+  const { transactions, categories, recurringExpenses, privacyMode } = useAppStore()
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
@@ -156,6 +170,35 @@ export function Insights() {
         pct: totalSpend > 0 ? (pm.amount / totalSpend) * 100 : 0,
       }))
   }, [expenses, totalSpend])
+
+  const recurringData = useMemo(() => {
+    const today = format(new Date(), 'yyyy-MM-dd')
+    const active = recurringExpenses.filter(
+      (r) => r.is_active && (!r.end_date || r.end_date >= today)
+    )
+    const totalMonthly = active.reduce((s, r) => s + toMonthly(r.amount, r.frequency), 0)
+
+    const catMap = new Map<string, { name: string; color: string; monthly: number; count: number }>()
+    for (const r of active) {
+      const cat = categories.find((c) => c.id === r.category_id) ?? r.category
+      const key = r.category_id
+      const monthly = toMonthly(r.amount, r.frequency)
+      const existing = catMap.get(key)
+      if (existing) { existing.monthly += monthly; existing.count++ }
+      else catMap.set(key, { name: cat?.name ?? 'Other', color: cat?.color ?? '#6366f1', monthly, count: 1 })
+    }
+
+    const byCategory = Array.from(catMap.values())
+      .sort((a, b) => b.monthly - a.monthly)
+      .map((c) => ({ ...c, pct: totalMonthly > 0 ? (c.monthly / totalMonthly) * 100 : 0 }))
+
+    const activeWithCat = active.map((r) => ({
+      ...r,
+      resolvedCategory: categories.find((c) => c.id === r.category_id) ?? r.category,
+    })).sort((a, b) => toMonthly(b.amount, b.frequency) - toMonthly(a.amount, a.frequency))
+
+    return { active, totalMonthly, byCategory, activeWithCat }
+  }, [recurringExpenses, categories])
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
@@ -358,6 +401,90 @@ export function Insights() {
                   </div>
                 ))}
               </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Recurring Payments */}
+        {recurringData.active.length > 0 && (
+          <Card className="p-4 md:col-span-2">
+            {/* Header */}
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <RefreshCw size={14} className="text-primary-500" />
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Recurring Payments</h3>
+                </div>
+                <p className="text-xs text-gray-400">{recurringData.active.length} active schedule{recurringData.active.length !== 1 ? 's' : ''}</p>
+              </div>
+              <div className="text-right">
+                <AmountDisplay cents={Math.round(recurringData.totalMonthly)} size="lg" />
+                <p className="text-xs text-gray-400 mt-0.5">estimated / month</p>
+              </div>
+            </div>
+
+            {/* Donut + category legend */}
+            {recurringData.byCategory.length > 0 && (
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex-shrink-0">
+                  <ResponsiveContainer width={140} height={140}>
+                    <PieChart>
+                      <Pie
+                        data={recurringData.byCategory.map((c) => ({ name: c.name, value: c.monthly / 100, color: c.color }))}
+                        cx="50%" cy="50%" innerRadius={44} outerRadius={66}
+                        dataKey="value" paddingAngle={recurringData.byCategory.length > 1 ? 2 : 0} strokeWidth={0}
+                      >
+                        {recurringData.byCategory.map((c, i) => <Cell key={i} fill={c.color} />)}
+                      </Pie>
+                      <Tooltip
+                        formatter={(v) => [privacyMode ? '••••' : `$${Number(v).toFixed(2)}/mo`, 'Monthly']}
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', fontSize: '12px' }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex flex-col gap-2 flex-1 min-w-0">
+                  {recurringData.byCategory.map((c) => (
+                    <div key={c.name} className="flex items-center gap-2 min-w-0">
+                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
+                      <span className="text-xs text-gray-600 dark:text-gray-400 truncate flex-1">{c.name}</span>
+                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300 flex-shrink-0">
+                        {fmt(Math.round(c.monthly))}
+                      </span>
+                      <span className="text-xs text-gray-400 flex-shrink-0 w-7 text-right">{c.pct.toFixed(0)}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Individual schedules */}
+            <div className="flex flex-col gap-2">
+              {recurringData.activeWithCat.map((r) => (
+                <div key={r.id} className="flex items-center gap-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 px-3 py-2.5">
+                  {r.resolvedCategory && (
+                    <CategoryIcon icon={r.resolvedCategory.icon} color={r.resolvedCategory.color} size="sm" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{r.name}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-xs text-gray-400">{FREQ_LABEL[r.frequency] ?? r.frequency}</span>
+                      {r.end_date && (
+                        <>
+                          <span className="text-gray-200 dark:text-gray-700">·</span>
+                          <span className="text-xs text-gray-400">ends {r.end_date}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <AmountDisplay cents={r.amount} size="md" />
+                    {r.frequency !== 'monthly' && (
+                      <p className="text-xs text-gray-400 mt-0.5">{fmt(Math.round(toMonthly(r.amount, r.frequency)))}/mo</p>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           </Card>
         )}
