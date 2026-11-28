@@ -153,34 +153,46 @@ export function Settings() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <PageHeader title="Settings" />
 
-      <div className="px-5 md:px-8 pb-8 max-w-5xl mx-auto">
+      <div className="px-5 md:px-8 pb-8">
         {/* Profile — full width */}
-        <Card className="p-4 mb-4">
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-2xl bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center">
-              <User size={22} className="text-primary-600 dark:text-primary-400" />
+        <Card className="p-5 mb-6">
+          <div className="flex items-center gap-4">
+            <div className="h-14 w-14 rounded-2xl bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center flex-shrink-0">
+              <User size={26} className="text-primary-600 dark:text-primary-400" />
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               {isDemoMode ? (
                 <>
-                  <p className="font-semibold text-gray-900 dark:text-gray-50">Demo Mode</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Data is not saved</p>
+                  <p className="font-semibold text-gray-900 dark:text-gray-50 text-base">Demo Mode</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Data is stored locally and not synced</p>
                 </>
               ) : (
                 <>
-                  <p className="font-semibold text-gray-900 dark:text-gray-50">
+                  <p className="font-semibold text-gray-900 dark:text-gray-50 text-base">
                     {user?.user_metadata?.full_name ?? 'User'}
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">{user?.email}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{user?.email}</p>
                 </>
               )}
             </div>
+            {!isDemoMode && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSignOut}
+                loading={signingOut}
+                className="hidden md:flex text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 gap-1.5 flex-shrink-0"
+              >
+                <LogOut size={15} />
+                Sign Out
+              </Button>
+            )}
           </div>
         </Card>
 
-        {/* Two-column grid on desktop */}
-        <div className="flex flex-col gap-4 md:grid md:grid-cols-2 md:gap-6 md:items-start mb-4">
-          {/* Left column: Appearance + Accent Color */}
+        {/* 3-column grid on desktop */}
+        <div className="flex flex-col gap-4 md:grid md:grid-cols-3 md:gap-6 md:items-start mb-6">
+          {/* Col 1: Appearance */}
           <div className="flex flex-col gap-4">
             {/* Appearance */}
             <Card className="p-4">
@@ -245,7 +257,7 @@ export function Settings() {
             </Card>
           </div>
 
-          {/* Right column: Payment Methods + Categories */}
+          {/* Col 2: Payment Methods */}
           <div className="flex flex-col gap-4">
             {/* Payment Methods */}
             <Card>
@@ -293,7 +305,10 @@ export function Settings() {
               )}
             </Card>
 
-            {/* Categories */}
+          </div>
+
+          {/* Col 3: Categories */}
+          <div className="flex flex-col gap-4">
             <Card>
               <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Categories</h3>
@@ -388,72 +403,60 @@ export function Settings() {
           </div>
         </div>
 
-        {/* Bottom section — full width, constrained on desktop */}
-        <div className="flex flex-col gap-4 md:max-w-md">
-          {/* Security */}
-          {!isDemoMode && (
-            <Card>
-              <div className="divide-y divide-gray-50 dark:divide-gray-800/50">
-                <button
-                  onClick={() => {}}
-                  className="flex w-full items-center gap-3 px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-                >
-                  <Shield size={18} className="text-gray-500 dark:text-gray-400" />
-                  <span className="flex-1 text-sm text-gray-700 dark:text-gray-300 text-left">Security</span>
-                  <ChevronRight size={16} className="text-gray-300 dark:text-gray-600" />
-                </button>
-              </div>
-            </Card>
-          )}
-
-          {/* Demo Mode Info */}
-          {isDemoMode && (
-            <Card className="p-4">
-              <div className="flex gap-3">
-                <Info size={18} className="text-amber-500 flex-shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">Demo Mode Active</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                    You're viewing sample data. Sign in to save your real transactions across devices.
-                  </p>
-                  {isSupabaseConfigured && (
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        useAppStore.getState().reset()
-                        window.location.reload()
-                      }}
-                      className="w-full"
-                    >
-                      Sign in / Create account
-                    </Button>
-                  )}
+        {/* Bottom row: Security/Demo info on left, App Info + Sign Out on right */}
+        <div className="flex flex-col md:flex-row gap-4 md:items-start">
+          <div className="flex-1 flex flex-col gap-4">
+            {!isDemoMode && (
+              <Card>
+                <div className="divide-y divide-gray-50 dark:divide-gray-800/50">
+                  <button
+                    onClick={() => {}}
+                    className="flex w-full items-center gap-3 px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                  >
+                    <Shield size={18} className="text-gray-500 dark:text-gray-400" />
+                    <span className="flex-1 text-sm text-gray-700 dark:text-gray-300 text-left">Security</span>
+                    <ChevronRight size={16} className="text-gray-300 dark:text-gray-600" />
+                  </button>
                 </div>
+              </Card>
+            )}
+
+            {isDemoMode && (
+              <Card className="p-4">
+                <div className="flex gap-3">
+                  <Info size={18} className="text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">Demo Mode Active</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      You're viewing sample data. Connect Supabase to save real transactions across devices.
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-4 md:w-72">
+            <Card className="p-4">
+              <div className="flex justify-between text-xs text-gray-400">
+                <span>Expenses</span>
+                <span>v1.0.0</span>
               </div>
             </Card>
-          )}
 
-          {/* App Info */}
-          <Card className="p-4">
-            <div className="flex justify-between text-xs text-gray-400">
-              <span>Expenses</span>
-              <span>v1.0.0</span>
-            </div>
-          </Card>
-
-          {/* Sign Out */}
-          {!isDemoMode && (
-            <Button
-              variant="ghost"
-              size="lg"
-              onClick={handleSignOut}
-              loading={signingOut}
-              className="w-full text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 gap-2"
-            >
-              <LogOut size={18} />
-              Sign Out
-            </Button>
-          )}
+            {!isDemoMode && (
+              <Button
+                variant="ghost"
+                size="lg"
+                onClick={handleSignOut}
+                loading={signingOut}
+                className="w-full md:hidden text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 gap-2"
+              >
+                <LogOut size={18} />
+                Sign Out
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </div>
