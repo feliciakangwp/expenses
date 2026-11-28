@@ -187,31 +187,6 @@ export function QuickExpenseEntry({
               className="overflow-hidden"
             >
               <div className="flex flex-col gap-3 pb-2">
-                {/* Subcategory */}
-                {catSubcats.length > 0 && (
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-                      Subcategory
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {catSubcats.map((sc) => (
-                        <button
-                          key={sc.id}
-                          onClick={() => setSubcategoryId(sc.id === subcategoryId ? null : sc.id)}
-                          className={cn(
-                            'rounded-xl px-3 py-1.5 text-sm font-medium transition-all',
-                            subcategoryId === sc.id
-                              ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300'
-                              : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
-                          )}
-                        >
-                          {sc.name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
                 {/* Description */}
                 <div className="relative">
                   <MessageSquare size={15} className="absolute left-3 top-3 text-gray-400" />
