@@ -27,6 +27,11 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  /* Safe-area-aware top padding for page headers — accounts for iOS notch / Dynamic Island */
+  .page-safe-top {
+    padding-top: max(5rem, calc(env(safe-area-inset-top) + 1.25rem));
+  }
+
   /* Prevent iOS Safari from zooming on input focus (requires font-size >= 16px) */
   @media (max-width: 768px) {
     input, select, textarea {
