@@ -364,6 +364,7 @@ export function Home() {
             payment_method_id: data.paymentMethodId,
             frequency: data.recurringFrequency,
             next_payment_date: advanceDate(data.transactionDate.split('T')[0], data.recurringFrequency),
+            end_date: data.recurringEndDate,
             is_active: true,
             auto_record: false,
             notes: null,

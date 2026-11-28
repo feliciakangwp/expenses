@@ -301,7 +301,7 @@ export function useData() {
     id: rec.id, user_id: rec.user_id, name: rec.name, amount: rec.amount,
     currency: rec.currency, category_id: rec.category_id, subcategory_id: rec.subcategory_id,
     payment_method_id: rec.payment_method_id, frequency: rec.frequency,
-    next_payment_date: rec.next_payment_date, is_active: rec.is_active,
+    next_payment_date: rec.next_payment_date, end_date: rec.end_date ?? null, is_active: rec.is_active,
     auto_record: rec.auto_record, notes: rec.notes,
     created_at: rec.created_at, updated_at: rec.updated_at,
   })

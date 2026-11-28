@@ -121,6 +121,7 @@ export interface RecurringExpense {
   payment_method_id: string | null
   frequency: Frequency
   next_payment_date: string
+  end_date: string | null
   is_active: boolean
   auto_record: boolean
   notes: string | null

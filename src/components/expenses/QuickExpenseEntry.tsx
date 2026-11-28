@@ -25,6 +25,7 @@ interface QuickExpenseEntryProps {
     isNeeds: boolean | null
     isRecurring: boolean
     recurringFrequency: 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'annual'
+    recurringEndDate: string | null
   }) => Promise<void>
 }
 
@@ -44,6 +45,7 @@ export function QuickExpenseEntry({
   const [transactionDate, setTransactionDate] = useState(format(new Date(), "yyyy-MM-dd"))
   const [isRecurring, setIsRecurring] = useState(false)
   const [recurringFreq, setRecurringFreq] = useState<'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'annual'>('monthly')
+  const [recurringEndDate, setRecurringEndDate] = useState<string>('')
   const [showMore, setShowMore] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -65,6 +67,7 @@ export function QuickExpenseEntry({
         isNeeds: selectedCategory.is_needs,
         isRecurring,
         recurringFrequency: recurringFreq,
+        recurringEndDate: recurringEndDate || null,
       })
       setSaved(true)
       setTimeout(() => {
@@ -74,7 +77,8 @@ export function QuickExpenseEntry({
         setSubcategoryId(null)
         setTransactionDate(format(new Date(), "yyyy-MM-dd"))
         setIsRecurring(false)
-        setShowMore(false)
+        setRecurringEndDate('')
+        setShowMore(true)
       }, 1200)
     } finally {
       setSaving(false)
@@ -222,17 +226,28 @@ export function QuickExpenseEntry({
                     Recurring
                   </button>
                   {isRecurring && (
-                    <div className="flex gap-2 mt-2 flex-wrap">
-                      {(['weekly', 'biweekly', 'monthly', 'quarterly', 'annual'] as const).map((f) => (
-                        <button
-                          key={f}
-                          type="button"
-                          onClick={() => setRecurringFreq(f)}
-                          className={`rounded-xl px-3 py-1.5 text-xs font-medium transition-all capitalize ${recurringFreq === f ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}
-                        >
-                          {f}
-                        </button>
-                      ))}
+                    <div className="mt-2 flex flex-col gap-2">
+                      <div className="flex gap-2 flex-wrap">
+                        {(['weekly', 'biweekly', 'monthly', 'quarterly', 'annual'] as const).map((f) => (
+                          <button
+                            key={f}
+                            type="button"
+                            onClick={() => setRecurringFreq(f)}
+                            className={`rounded-xl px-3 py-1.5 text-xs font-medium transition-all capitalize ${recurringFreq === f ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}
+                          >
+                            {f}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="relative">
+                        <label className="mb-1 block text-xs text-gray-500 dark:text-gray-400">Ends on (optional)</label>
+                        <input
+                          type="date"
+                          value={recurringEndDate}
+                          onChange={(e) => setRecurringEndDate(e.target.value)}
+                          className="w-full rounded-xl bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-50 outline-none focus:ring-2 focus:ring-primary-500/50"
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
