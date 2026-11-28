@@ -43,6 +43,7 @@ interface AppState {
   removePaymentMethod: (id: string) => void
   setBudgets: (b: Budget[]) => void
   setBudgetForMonth: (year: number, month: number, amount: number) => void
+  setCategoryBudget: (year: number, month: number, categoryId: string, amount: number) => void
   setInvestments: (invs: Investment[]) => void
   addInvestment: (inv: Investment) => void
   updateInvestment: (inv: Investment) => void
@@ -119,6 +120,28 @@ export const useAppStore = create<AppState>()(
               id: `budget-${year}-${month}-${Date.now()}`,
               user_id: s.user?.id ?? 'demo-user',
               category_id: null,
+              amount,
+              period: 'monthly' as const,
+              year,
+              month,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            }],
+          }
+        }),
+      setCategoryBudget: (year, month, categoryId, amount) =>
+        set((s) => {
+          const existing = s.budgets.find(
+            (b) => b.category_id === categoryId && b.period === 'monthly' && b.year === year && b.month === month
+          )
+          if (existing) {
+            return { budgets: s.budgets.map((b) => b.id === existing.id ? { ...b, amount, updated_at: new Date().toISOString() } : b) }
+          }
+          return {
+            budgets: [...s.budgets, {
+              id: `budget-${year}-${month}-${categoryId}-${Date.now()}`,
+              user_id: s.user?.id ?? 'demo-user',
+              category_id: categoryId,
               amount,
               period: 'monthly' as const,
               year,

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, ChevronUp, Check, CreditCard, Calendar, MessageSquare, Plus } from 'lucide-react'
 import type { Category, PaymentMethod, Subcategory } from '@/types'
-import { NumericKeypad } from './NumericKeypad'
+
 import { CategoryPicker } from './CategoryPicker'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
@@ -106,23 +106,8 @@ export function QuickExpenseEntry({
         />
       </div>
 
-      {/* Amount Display — mobile only */}
-      <div className="md:hidden px-5 text-center">
-        <div
-          className={cn(
-            'text-5xl font-bold tracking-tight transition-colors',
-            cents === 0
-              ? 'text-gray-300 dark:text-gray-700'
-              : 'text-gray-900 dark:text-gray-50'
-          )}
-        >
-          <span className="text-2xl font-semibold text-gray-400 mr-1">$</span>
-          {amount === '0' ? '0.00' : amount}
-        </div>
-      </div>
-
-      {/* Amount Input — desktop only */}
-      <div className="hidden md:block px-5">
+      {/* Amount Input — native keyboard on all devices */}
+      <div className="px-5">
         <div className="relative">
           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-semibold text-gray-400">$</span>
           <input
@@ -132,16 +117,13 @@ export function QuickExpenseEntry({
             onChange={(e) => setAmount(e.target.value || '0')}
             onKeyDown={(e) => e.key === 'Enter' && handleSave()}
             placeholder="0.00"
-            className="w-full rounded-xl bg-gray-50 dark:bg-gray-800 pl-10 pr-4 py-3 text-3xl font-bold text-gray-900 dark:text-gray-50 placeholder-gray-300 dark:placeholder-gray-700 outline-none focus:ring-2 focus:ring-primary-500/50"
-            autoFocus
+            className="w-full rounded-xl bg-gray-50 dark:bg-gray-800 pl-10 pr-4 py-4 md:py-3 text-3xl font-bold text-gray-900 dark:text-gray-50 placeholder-gray-300 dark:placeholder-gray-700 outline-none focus:ring-2 focus:ring-primary-500/50"
           />
         </div>
-        <p className="text-xs text-gray-400 text-center mt-1.5">Type amount · Press <kbd className="rounded bg-gray-100 dark:bg-gray-800 px-1 py-0.5 text-[10px] font-mono">↵</kbd> to save</p>
-      </div>
-
-      {/* Keypad — mobile only */}
-      <div className="md:hidden">
-        <NumericKeypad value={amount} onChange={setAmount} />
+        <p className="text-xs text-gray-400 text-center mt-1.5">
+          <span className="md:hidden">Tap above to enter amount</span>
+          <span className="hidden md:inline">Type amount · Press <kbd className="rounded bg-gray-100 dark:bg-gray-800 px-1 py-0.5 text-[10px] font-mono">↵</kbd> to save</span>
+        </p>
       </div>
 
       {/* Payment Method — always visible */}

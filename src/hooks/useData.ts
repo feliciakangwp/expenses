@@ -266,6 +266,22 @@ export function useData() {
     [isDemoMode, user]
   )
 
+  const saveCategoryBudget = useCallback(
+    async (year: number, month: number, categoryId: string, amount: number): Promise<void> => {
+      const store = useAppStore.getState()
+      const existing = store.budgets.find((b) => b.category_id === categoryId && b.period === 'monthly' && b.year === year && b.month === month)
+      if (isDemoMode) { store.setCategoryBudget(year, month, categoryId, amount); return }
+      if (existing) {
+        await (supabase.from('budgets') as any).update({ amount, updated_at: nowSGT() }).eq('id', existing.id)
+      } else {
+        const row = { id: generateId(), user_id: user!.id, category_id: categoryId, amount, period: 'monthly', year, month, created_at: nowSGT(), updated_at: nowSGT() }
+        await supabase.from('budgets').insert([row] as any)
+      }
+      store.setCategoryBudget(year, month, categoryId, amount)
+    },
+    [isDemoMode, user]
+  )
+
   // Investments — optimistic: update store first so UI responds immediately
   const saveInvestment = useCallback(
     async (inv: Investment): Promise<void> => {
@@ -384,7 +400,7 @@ export function useData() {
     saveTransaction, editTransaction, removeTransaction, restoreTransaction,
     saveCategory, editCategory, deleteCategory,
     savePaymentMethod, deletePaymentMethod,
-    saveBudget,
+    saveBudget, saveCategoryBudget,
     saveInvestment, editInvestment, deleteInvestment,
     saveRecurring, editRecurring, deleteRecurring,
     savePreferences,
