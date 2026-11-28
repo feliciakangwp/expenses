@@ -23,11 +23,11 @@ export function UpdateBanner() {
     },
   })
 
-  // Auto-apply the update if the user has had the banner visible for 60 s
-  // without acting on it (silent failsafe so stale installs self-heal).
+  // Auto-apply after 15 s if the user hasn't tapped Refresh —
+  // catches browsers (Safari) where the banner may not be tapped.
   useEffect(() => {
     if (!needRefresh) return
-    const t = setTimeout(() => updateServiceWorker(true), 60_000)
+    const t = setTimeout(() => updateServiceWorker(true), 15_000)
     return () => clearTimeout(t)
   }, [needRefresh, updateServiceWorker])
 
