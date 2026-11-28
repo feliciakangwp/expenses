@@ -410,11 +410,23 @@ export function Settings() {
           <Card className="p-4">
             <div className="flex gap-3">
               <Info size={18} className="text-amber-500 flex-shrink-0 mt-0.5" />
-              <div>
+              <div className="flex-1">
                 <p className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">Demo Mode Active</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  You're viewing sample data. Connect Supabase to save real transactions across devices.
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                  You're viewing sample data. Sign in to save your real transactions across devices.
                 </p>
+                {isSupabaseConfigured && (
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      useAppStore.getState().reset()
+                      window.location.reload()
+                    }}
+                    className="w-full"
+                  >
+                    Sign in / Create account
+                  </Button>
+                )}
               </div>
             </div>
           </Card>
