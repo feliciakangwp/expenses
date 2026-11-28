@@ -169,6 +169,21 @@ function AddInvestmentSheet({
   const [expiryDate, setExpiryDate] = useState(initial?.expiry_date ?? '')
   const [isExpired, setIsExpired] = useState(initial?.is_expired ?? false)
 
+  useEffect(() => {
+    if (open && !initial) {
+      setInvType('stock')
+      setTicker('')
+      setQuantity('')
+      setBuyPrice('')
+      setSellPrice('')
+      setBuyDate(format(new Date(), 'yyyy-MM-dd'))
+      setOptionType('call')
+      setStrikePrice('')
+      setExpiryDate('')
+      setIsExpired(false)
+    }
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const isEdit = !!initial
   const isOptions = invType === 'options'
 
