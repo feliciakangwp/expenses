@@ -631,11 +631,11 @@ export function Transactions() {
 
   const now = new Date()
   const [tab, setTab] = useState<TabType>(() => {
-    try { return (sessionStorage.getItem('txn-tab') as TabType) || 'expenses' } catch { return 'expenses' }
+    try { return (localStorage.getItem('txn-tab') as TabType) || 'expenses' } catch { return 'expenses' }
   })
 
   useEffect(() => {
-    try { sessionStorage.setItem('txn-tab', tab) } catch {}
+    try { localStorage.setItem('txn-tab', tab) } catch {}
   }, [tab])
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
