@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Search, Download, X, Plus, TrendingUp, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
+import { Search, Download, X, Plus, TrendingUp, ChevronDown, ChevronUp, Trash2, ChevronLeft, RefreshCw } from 'lucide-react'
 import { useAppStore } from '@/store/app'
 import { useData } from '@/hooks/useData'
 import { TransactionItem } from '@/components/expenses/TransactionItem'
@@ -20,6 +20,128 @@ type TabType = 'expenses' | 'income' | 'investments'
 type InvSort = 'ticker' | 'newest' | 'cost'
 
 const fmtPx = (p: number) => Number(p.toFixed(2)).toString()
+
+// ─── Transaction Edit Form ────────────────────────────────────────────────────
+
+function EditTransactionForm({
+  transaction: t,
+  onSave,
+  onCancel,
+}: {
+  transaction: Transaction
+  onSave: (data: Partial<Transaction>) => Promise<void>
+  onCancel: () => void
+}) {
+  const { paymentMethods } = useAppStore()
+  const [date, setDate] = useState(t.transaction_date.slice(0, 10))
+  const [description, setDescription] = useState(t.description ?? '')
+  const [merchant, setMerchant] = useState(t.merchant ?? '')
+  const [paymentMethodId, setPaymentMethodId] = useState<string | null>(t.payment_method_id)
+  const [isRecurring, setIsRecurring] = useState(t.is_recurring)
+  const [saving, setSaving] = useState(false)
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      await onSave({
+        transaction_date: date + 'T' + t.transaction_date.slice(11),
+        description: description.trim() || null,
+        merchant: merchant.trim() || null,
+        payment_method_id: paymentMethodId,
+        is_recurring: isRecurring,
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="px-5 pb-6 flex flex-col gap-4">
+      <button
+        onClick={onCancel}
+        className="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 -mb-1 self-start"
+      >
+        <ChevronLeft size={15} />
+        Back
+      </button>
+
+      {/* Date */}
+      <div>
+        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Date</label>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="w-full rounded-xl bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-50 outline-none focus:ring-2 focus:ring-primary-500/50"
+        />
+      </div>
+
+      {/* Description */}
+      <div>
+        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Description</label>
+        <input
+          type="text"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="e.g. Lunch with client"
+          className="w-full rounded-xl bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-50 placeholder-gray-400 outline-none focus:ring-2 focus:ring-primary-500/50"
+        />
+      </div>
+
+      {/* Merchant */}
+      <div>
+        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Merchant</label>
+        <input
+          type="text"
+          value={merchant}
+          onChange={(e) => setMerchant(e.target.value)}
+          placeholder="e.g. Starbucks"
+          className="w-full rounded-xl bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-50 placeholder-gray-400 outline-none focus:ring-2 focus:ring-primary-500/50"
+        />
+      </div>
+
+      {/* Payment Method */}
+      <div>
+        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Payment Method</label>
+        <select
+          value={paymentMethodId ?? ''}
+          onChange={(e) => setPaymentMethodId(e.target.value || null)}
+          className="w-full rounded-xl bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-50 outline-none focus:ring-2 focus:ring-primary-500/50"
+        >
+          <option value="">None</option>
+          {paymentMethods.map((pm) => (
+            <option key={pm.id} value={pm.id}>{pm.name}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Recurring */}
+      <button
+        type="button"
+        onClick={() => setIsRecurring(!isRecurring)}
+        className={`flex items-center justify-between w-full rounded-xl px-4 py-3 transition-colors ${
+          isRecurring
+            ? 'bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-700'
+            : 'bg-gray-50 dark:bg-gray-800'
+        }`}
+      >
+        <div className="flex items-center gap-2">
+          <RefreshCw size={15} className={isRecurring ? 'text-primary-600 dark:text-primary-400' : 'text-gray-400'} />
+          <span className={`text-sm font-medium ${isRecurring ? 'text-primary-700 dark:text-primary-300' : 'text-gray-700 dark:text-gray-300'}`}>
+            Recurring expense
+          </span>
+        </div>
+        <div className={`w-10 h-6 rounded-full transition-colors flex items-center px-0.5 ${isRecurring ? 'bg-primary-600' : 'bg-gray-300 dark:bg-gray-600'}`}>
+          <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${isRecurring ? 'translate-x-4' : 'translate-x-0'}`} />
+        </div>
+      </button>
+
+      <Button onClick={handleSave} disabled={saving} className="w-full mt-1">
+        {saving ? 'Saving…' : 'Save Changes'}
+      </Button>
+    </div>
+  )
+}
 
 // ─── Income Add Form ──────────────────────────────────────────────────────────
 
@@ -626,7 +748,7 @@ function InvestmentsTab() {
 
 export function Transactions() {
   const { transactions, categories } = useAppStore()
-  const { removeTransaction, saveTransaction, restoreTransaction } = useData()
+  const { removeTransaction, saveTransaction, restoreTransaction, editTransaction } = useData()
   const { toast } = useToast()
 
   const now = new Date()
@@ -641,6 +763,7 @@ export function Transactions() {
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [search, setSearch] = useState('')
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null)
+  const [txEditMode, setTxEditMode] = useState(false)
   const [addIncomeOpen, setAddIncomeOpen] = useState(false)
 
   const { start: periodStart, end: periodEnd } = periodToRange(year, month)
@@ -695,6 +818,14 @@ export function Transactions() {
         onClick: () => restoreTransaction(tx),
       },
     })
+  }
+
+  const handleEditTx = async (data: Partial<Transaction>) => {
+    if (!selectedTx) return
+    await editTransaction(selectedTx.id, data)
+    setSelectedTx(null)
+    setTxEditMode(false)
+    toast('Transaction updated', { type: 'success' })
   }
 
   const handleAddIncome = async (source: string, amountCents: number, description: string, date: string) => {
@@ -889,13 +1020,25 @@ export function Transactions() {
       {/* ── Investments Tab ── */}
       {tab === 'investments' && <InvestmentsTab />}
 
-      {/* Detail Sheet */}
-      <Sheet open={selectedTx !== null} onClose={() => setSelectedTx(null)} title="Transaction">
-        {selectedTx && (
+      {/* Detail / Edit Sheet */}
+      <Sheet
+        open={selectedTx !== null}
+        onClose={() => { setSelectedTx(null); setTxEditMode(false) }}
+        title={txEditMode ? 'Edit Transaction' : 'Transaction'}
+      >
+        {selectedTx && !txEditMode && (
           <TransactionDetail
             transaction={selectedTx}
+            onEdit={() => setTxEditMode(true)}
             onDelete={() => handleDelete(selectedTx)}
-            onClose={() => setSelectedTx(null)}
+            onClose={() => { setSelectedTx(null); setTxEditMode(false) }}
+          />
+        )}
+        {selectedTx && txEditMode && (
+          <EditTransactionForm
+            transaction={selectedTx}
+            onSave={handleEditTx}
+            onCancel={() => setTxEditMode(false)}
           />
         )}
       </Sheet>
