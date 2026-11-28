@@ -37,41 +37,61 @@ function RecurringWidget() {
   const [editAmount, setEditAmount] = useState('')
   const [editDate, setEditDate] = useState('')
   const [editFreq, setEditFreq] = useState<Frequency>('monthly')
-  const [showScope, setShowScope] = useState(false)
   const today = format(new Date(), 'yyyy-MM-dd')
 
-  // Auto-record items that are strictly past their due date (not today — give user the day to edit/skip)
+  // Auto-record all items due today or earlier; skip items past their end date
   useEffect(() => {
     const { recurringExpenses: allRec, categories: allCats } = useAppStore.getState()
-    const strictlyOverdue = allRec.filter((r) => r.is_active && r.next_payment_date < today)
-    for (const rec of strictlyOverdue) {
-      const cat = allCats.find((c) => c.id === rec.category_id)
-      if (!cat) continue
-      saveTransaction({
-        categoryId: rec.category_id,
-        subcategoryId: rec.subcategory_id,
-        amount: rec.amount,
-        paymentMethodId: rec.payment_method_id,
-        description: rec.name,
-        transactionDate: `${rec.next_payment_date}T00:00:00`,
-        notes: '',
-        isNeeds: cat.is_needs,
-        type: 'expense',
-      }).then(() => {
-        editRecurring({ ...rec, next_payment_date: advanceDate(rec.next_payment_date, rec.frequency), updated_at: nowSGT() })
-      })
+
+    // Deactivate schedules that have passed their end date without needing a new recording
+    const pastEnd = allRec.filter((r) => r.is_active && r.end_date && r.next_payment_date > r.end_date)
+    for (const rec of pastEnd) {
+      editRecurring({ ...rec, is_active: false, updated_at: nowSGT() })
     }
+
+    // Items due today or earlier
+    const dueNow = allRec.filter(
+      (r) => r.is_active && r.next_payment_date <= today && (!r.end_date || r.next_payment_date <= r.end_date)
+    )
+    if (dueNow.length === 0) return
+
+    Promise.all(
+      dueNow.map((rec) => {
+        const cat = allCats.find((c) => c.id === rec.category_id)
+        if (!cat) return Promise.resolve()
+        return saveTransaction({
+          categoryId: rec.category_id,
+          subcategoryId: rec.subcategory_id,
+          amount: rec.amount,
+          paymentMethodId: rec.payment_method_id,
+          description: rec.name,
+          transactionDate: `${rec.next_payment_date}T00:00:00`,
+          notes: '',
+          isNeeds: cat.is_needs,
+          type: 'expense',
+          isRecurring: true,
+          recurringExpenseId: rec.id,
+        }).then(() => {
+          const nextDate = advanceDate(rec.next_payment_date, rec.frequency)
+          const shouldDeactivate = !!(rec.end_date && nextDate > rec.end_date)
+          editRecurring({ ...rec, next_payment_date: nextDate, is_active: shouldDeactivate ? false : rec.is_active, updated_at: nowSGT() })
+        })
+      })
+    ).then(() => {
+      if (dueNow.length === 1) {
+        toast(`${dueNow[0].name} recorded automatically`, { type: 'info' })
+      } else {
+        toast(`${dueNow.length} recurring payments recorded automatically`, { type: 'info' })
+      }
+    })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const active = recurringExpenses.filter((r) => r.is_active)
   if (active.length === 0) return null
 
-  const overdue = active.filter((r) => r.next_payment_date <= today)
-  const upcoming = active.filter((r) => r.next_payment_date > today)
-
   const handleSkip = (rec: RecurringExpense) => {
     editRecurring({ ...rec, next_payment_date: advanceDate(rec.next_payment_date, rec.frequency), updated_at: nowSGT() })
-    toast(`${rec.name} skipped`, { type: 'info' })
+    toast(`${rec.name} skipped — next payment moved forward`, { type: 'info' })
   }
 
   const openEdit = (rec: RecurringExpense) => {
@@ -81,34 +101,11 @@ function RecurringWidget() {
     setEditFreq(rec.frequency)
   }
 
-  const applyEdit = async (scope: 'this' | 'all') => {
+  const saveEdit = () => {
     if (!editRec) return
-    const cat = categories.find((c) => c.id === editRec.category_id)
-    if (!cat) return
     const newAmount = Math.round(parseFloat(editAmount) * 100)
-    if (scope === 'this') {
-      try {
-        await saveTransaction({
-          categoryId: editRec.category_id,
-          subcategoryId: editRec.subcategory_id,
-          amount: newAmount,
-          paymentMethodId: editRec.payment_method_id,
-          description: editRec.name,
-          transactionDate: `${editDate}T00:00:00`,
-          notes: '',
-          isNeeds: cat.is_needs,
-          type: 'expense',
-        })
-        editRecurring({ ...editRec, next_payment_date: advanceDate(editDate, editRec.frequency), updated_at: nowSGT() })
-        toast(`${editRec.name} recorded`, { type: 'success' })
-      } catch {
-        toast('Failed to record', { type: 'error' })
-      }
-    } else {
-      editRecurring({ ...editRec, amount: newAmount, next_payment_date: editDate, frequency: editFreq, updated_at: nowSGT() })
-      toast(`${editRec.name} updated`, { type: 'success' })
-    }
-    setShowScope(false)
+    editRecurring({ ...editRec, amount: newAmount, next_payment_date: editDate, frequency: editFreq, updated_at: nowSGT() })
+    toast(`${editRec.name} updated`, { type: 'success' })
     setEditRec(null)
   }
 
@@ -127,23 +124,17 @@ function RecurringWidget() {
         >
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Recurring</span>
-            {overdue.length > 0 && (
-              <span className="text-[10px] font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full">
-                {overdue.length} due today
-              </span>
-            )}
-            <span className="text-xs text-gray-400">{active.length} items</span>
+            <span className="text-xs text-gray-400">{active.length} active</span>
           </div>
           {open ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
         </button>
 
         {open && (
           <div className="border-t border-gray-100 dark:border-gray-800 divide-y divide-gray-50 dark:divide-gray-800/50">
-            {[...overdue, ...upcoming].map((rec) => {
-              const isDue = rec.next_payment_date <= today
+            {active.map((rec) => {
               const cat = categories.find((c) => c.id === rec.category_id)
               return (
-                <div key={rec.id} className={`px-4 py-3 ${isDue ? 'bg-amber-50 dark:bg-amber-900/10' : ''}`}>
+                <div key={rec.id} className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     {cat && <CategoryIcon icon={cat.icon} color={cat.color} size="sm" />}
                     <div className="flex-1 min-w-0">
@@ -152,9 +143,7 @@ function RecurringWidget() {
                         <span className="text-[10px] font-medium text-gray-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded-full flex-shrink-0">{FREQ_LABELS[rec.frequency]}</span>
                       </div>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        ${(rec.amount / 100).toFixed(2)} · {isDue
-                          ? <span className="text-amber-600 dark:text-amber-400">Due {rec.next_payment_date}</span>
-                          : `Next ${rec.next_payment_date}`}
+                        ${(rec.amount / 100).toFixed(2)} · Next {rec.next_payment_date}
                       </p>
                     </div>
                     <div className="flex gap-1 flex-shrink-0">
@@ -179,8 +168,8 @@ function RecurringWidget() {
         )}
       </Card>
 
-      {/* Edit Sheet */}
-      <Sheet open={editRec !== null} onClose={() => setEditRec(null)} title="Edit Recurring">
+      {/* Edit Schedule Sheet */}
+      <Sheet open={editRec !== null} onClose={() => setEditRec(null)} title="Edit Schedule">
         {editRec && (
           <div className="px-5 flex flex-col gap-4 pb-6">
             <div>
@@ -197,7 +186,7 @@ function RecurringWidget() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Transaction Date</label>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Next payment date</label>
               <input
                 type="date"
                 value={editDate}
@@ -218,11 +207,11 @@ function RecurringWidget() {
             </div>
 
             <button
-              onClick={() => setShowScope(true)}
+              onClick={saveEdit}
               disabled={!editAmount || parseFloat(editAmount) <= 0}
               className="w-full rounded-xl bg-primary-600 text-white py-3 font-medium disabled:opacity-40"
             >
-              Save Changes
+              Update Schedule
             </button>
 
             <button
@@ -234,30 +223,6 @@ function RecurringWidget() {
           </div>
         )}
       </Sheet>
-
-      {/* Scope Dialog */}
-      {showScope && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-t-3xl p-6 flex flex-col gap-3">
-            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-50 text-center mb-1">Apply changes to…</h3>
-            <button
-              onClick={() => applyEdit('this')}
-              className="w-full rounded-xl bg-primary-600 text-white py-3.5 font-medium"
-            >
-              This occurrence only
-            </button>
-            <button
-              onClick={() => applyEdit('all')}
-              className="w-full rounded-xl border-2 border-primary-600 text-primary-600 dark:text-primary-400 dark:border-primary-500 py-3.5 font-medium"
-            >
-              All future occurrences
-            </button>
-            <button onClick={() => setShowScope(false)} className="text-sm text-gray-400 py-2 text-center w-full">
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
     </>
   )
 }

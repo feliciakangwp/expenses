@@ -72,6 +72,8 @@ export function useData() {
       notes: string
       isNeeds: boolean | null
       type?: Transaction['type']
+      isRecurring?: boolean
+      recurringExpenseId?: string | null
     }): Promise<Transaction | null> => {
       const newTx: Transaction = {
         id: generateId(),
@@ -89,8 +91,8 @@ export function useData() {
         payment_method_id: data.paymentMethodId,
         is_needs: data.isNeeds,
         is_fixed: null,
-        is_recurring: false,
-        recurring_expense_id: null,
+        is_recurring: data.isRecurring ?? false,
+        recurring_expense_id: data.recurringExpenseId ?? null,
         notes: data.notes || null,
         transaction_date: data.transactionDate,
         created_at: nowSGT(),
