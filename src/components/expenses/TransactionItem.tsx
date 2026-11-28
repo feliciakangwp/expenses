@@ -1,3 +1,4 @@
+import { RefreshCw } from 'lucide-react'
 import { CategoryIcon } from '@/components/ui/CategoryIcon'
 import { AmountDisplay } from '@/components/ui/AmountDisplay'
 import type { Transaction } from '@/types'
@@ -29,6 +30,12 @@ export function TransactionItem({ transaction: t, onClick }: TransactionItemProp
         </p>
         <div className="flex items-center gap-1.5 mt-0.5">
           <span className="text-xs text-gray-400 dark:text-gray-500">{formatTime(t.transaction_date)}</span>
+          {t.is_recurring && (
+            <>
+              <span className="text-gray-200 dark:text-gray-700">·</span>
+              <RefreshCw size={10} className="text-primary-400 dark:text-primary-500" />
+            </>
+          )}
           {t.payment_method && (
             <>
               <span className="text-gray-200 dark:text-gray-700">·</span>

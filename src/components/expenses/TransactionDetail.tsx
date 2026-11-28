@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Trash2, Edit3, Copy, Calendar, CreditCard, Tag, Store, MessageSquare } from 'lucide-react'
+import { Trash2, Edit3, Copy, Calendar, CreditCard, Tag, Store, MessageSquare, RefreshCw } from 'lucide-react'
 import type { Transaction } from '@/types'
 import { CategoryIcon } from '@/components/ui/CategoryIcon'
 import { AmountDisplay } from '@/components/ui/AmountDisplay'
@@ -9,13 +9,14 @@ import { cn } from '@/lib/utils'
 
 interface TransactionDetailProps {
   transaction: Transaction
+  recurringFrequency?: string
   onEdit?: () => void
   onDelete?: () => void
   onDuplicate?: () => void
   onClose: () => void
 }
 
-export function TransactionDetail({ transaction: t, onEdit, onDelete, onDuplicate, onClose }: TransactionDetailProps) {
+export function TransactionDetail({ transaction: t, recurringFrequency, onEdit, onDelete, onDuplicate, onClose }: TransactionDetailProps) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const cat = t.category
 
@@ -29,6 +30,7 @@ export function TransactionDetail({ transaction: t, onEdit, onDelete, onDuplicat
     t.payment_method && { icon: CreditCard, label: 'Payment', value: t.payment_method.name },
     { icon: Calendar, label: 'Date', value: `${formatDate(t.transaction_date)} · ${formatTime(t.transaction_date)}` },
     t.description && { icon: MessageSquare, label: 'Description', value: t.description },
+    t.is_recurring && { icon: RefreshCw, label: 'Recurring', value: recurringFrequency ? recurringFrequency.charAt(0).toUpperCase() + recurringFrequency.slice(1) : 'Yes' },
     t.notes && { icon: Tag, label: 'Notes', value: t.notes },
   ].filter(Boolean) as { icon: React.ElementType; label: string; value: string }[]
 

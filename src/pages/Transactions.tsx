@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Search, Download, X, Plus, TrendingUp, ChevronDown, ChevronUp, Trash2, ChevronLeft, RefreshCw } from 'lucide-react'
+import { Search, Download, X, Plus, TrendingUp, ChevronDown, ChevronUp, Trash2, ChevronLeft, RefreshCw, XCircle } from 'lucide-react'
 import { useAppStore } from '@/store/app'
 import { useData } from '@/hooks/useData'
 import { TransactionItem } from '@/components/expenses/TransactionItem'
@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/Button'
 import { AmountDisplay } from '@/components/ui/AmountDisplay'
 import { PeriodSelector, periodToRange } from '@/components/ui/PeriodSelector'
 import { useToast } from '@/components/ui/Toast'
-import type { Transaction, Investment } from '@/types'
+import type { Transaction, Investment, RecurringExpense, Frequency } from '@/types'
 import { formatDate, generateId, nowSGT } from '@/lib/utils'
 import { groupTransactionsByDate } from '@/lib/utils'
 import { format, differenceInDays, parseISO } from 'date-fns'
@@ -21,24 +21,42 @@ type InvSort = 'ticker' | 'newest' | 'cost'
 
 const fmtPx = (p: number) => Number(p.toFixed(2)).toString()
 
+const advanceDate = (date: string, freq: Frequency): string => {
+  const d = new Date(date + 'T00:00:00')
+  if (freq === 'weekly') d.setDate(d.getDate() + 7)
+  else if (freq === 'biweekly') d.setDate(d.getDate() + 14)
+  else if (freq === 'monthly') d.setMonth(d.getMonth() + 1)
+  else if (freq === 'quarterly') d.setMonth(d.getMonth() + 3)
+  else if (freq === 'annual') d.setFullYear(d.getFullYear() + 1)
+  return d.toISOString().slice(0, 10)
+}
+
 // ─── Transaction Edit Form ────────────────────────────────────────────────────
 
 function EditTransactionForm({
   transaction: t,
   onSave,
+  onStopRecurring,
   onCancel,
 }: {
   transaction: Transaction
-  onSave: (data: Partial<Transaction>) => Promise<void>
+  onSave: (data: Partial<Transaction> & { recurringFrequency: Frequency }) => Promise<void>
+  onStopRecurring?: () => Promise<void>
   onCancel: () => void
 }) {
-  const { paymentMethods } = useAppStore()
+  const { paymentMethods, recurringExpenses } = useAppStore()
+  const linkedRec = t.recurring_expense_id
+    ? recurringExpenses.find((r) => r.id === t.recurring_expense_id) ?? null
+    : null
+
   const [date, setDate] = useState(t.transaction_date.slice(0, 10))
   const [description, setDescription] = useState(t.description ?? '')
   const [merchant, setMerchant] = useState(t.merchant ?? '')
   const [paymentMethodId, setPaymentMethodId] = useState<string | null>(t.payment_method_id)
   const [isRecurring, setIsRecurring] = useState(t.is_recurring)
+  const [recurringFreq, setRecurringFreq] = useState<Frequency>(linkedRec?.frequency ?? 'monthly')
   const [saving, setSaving] = useState(false)
+  const [stopping, setStopping] = useState(false)
 
   const handleSave = async () => {
     setSaving(true)
@@ -49,10 +67,17 @@ function EditTransactionForm({
         merchant: merchant.trim() || null,
         payment_method_id: paymentMethodId,
         is_recurring: isRecurring,
+        recurringFrequency: recurringFreq,
       })
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleStop = async () => {
+    if (!onStopRecurring) return
+    setStopping(true)
+    try { await onStopRecurring() } finally { setStopping(false) }
   }
 
   return (
@@ -115,26 +140,61 @@ function EditTransactionForm({
         </select>
       </div>
 
-      {/* Recurring */}
-      <button
-        type="button"
-        onClick={() => setIsRecurring(!isRecurring)}
-        className={`flex items-center justify-between w-full rounded-xl px-4 py-3 transition-colors ${
-          isRecurring
-            ? 'bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-700'
-            : 'bg-gray-50 dark:bg-gray-800'
-        }`}
-      >
-        <div className="flex items-center gap-2">
-          <RefreshCw size={15} className={isRecurring ? 'text-primary-600 dark:text-primary-400' : 'text-gray-400'} />
-          <span className={`text-sm font-medium ${isRecurring ? 'text-primary-700 dark:text-primary-300' : 'text-gray-700 dark:text-gray-300'}`}>
-            Recurring expense
-          </span>
-        </div>
-        <div className={`w-10 h-6 rounded-full transition-colors flex items-center px-0.5 ${isRecurring ? 'bg-primary-600' : 'bg-gray-300 dark:bg-gray-600'}`}>
-          <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${isRecurring ? 'translate-x-4' : 'translate-x-0'}`} />
-        </div>
-      </button>
+      {/* Recurring toggle */}
+      <div className="flex flex-col gap-2">
+        <button
+          type="button"
+          onClick={() => setIsRecurring(!isRecurring)}
+          className={`flex items-center justify-between w-full rounded-xl px-4 py-3 transition-colors ${
+            isRecurring
+              ? 'bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-700'
+              : 'bg-gray-50 dark:bg-gray-800'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <RefreshCw size={15} className={isRecurring ? 'text-primary-600 dark:text-primary-400' : 'text-gray-400'} />
+            <span className={`text-sm font-medium ${isRecurring ? 'text-primary-700 dark:text-primary-300' : 'text-gray-700 dark:text-gray-300'}`}>
+              Recurring expense
+            </span>
+          </div>
+          <div className={`w-10 h-6 rounded-full transition-colors flex items-center px-0.5 ${isRecurring ? 'bg-primary-600' : 'bg-gray-300 dark:bg-gray-600'}`}>
+            <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${isRecurring ? 'translate-x-4' : 'translate-x-0'}`} />
+          </div>
+        </button>
+
+        {/* Frequency selector */}
+        {isRecurring && (
+          <div className="flex gap-2 flex-wrap px-1">
+            {(['weekly', 'biweekly', 'monthly', 'quarterly', 'annual'] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setRecurringFreq(f)}
+                className={`rounded-xl px-3 py-1.5 text-xs font-medium capitalize transition-all ${
+                  recurringFreq === f
+                    ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+                }`}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Stop recurring — only shown when there's an active recurring schedule */}
+        {linkedRec?.is_active && (
+          <button
+            type="button"
+            onClick={handleStop}
+            disabled={stopping}
+            className="flex items-center gap-1.5 self-start text-sm text-red-500 dark:text-red-400 font-medium py-1 px-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+          >
+            <XCircle size={14} />
+            {stopping ? 'Stopping…' : 'Stop recurring schedule'}
+          </button>
+        )}
+      </div>
 
       <Button onClick={handleSave} disabled={saving} className="w-full mt-1">
         {saving ? 'Saving…' : 'Save Changes'}
@@ -747,8 +807,8 @@ function InvestmentsTab() {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export function Transactions() {
-  const { transactions, categories } = useAppStore()
-  const { removeTransaction, saveTransaction, restoreTransaction, editTransaction } = useData()
+  const { transactions, categories, recurringExpenses } = useAppStore()
+  const { removeTransaction, saveTransaction, restoreTransaction, editTransaction, saveRecurring, editRecurring } = useData()
   const { toast } = useToast()
 
   const now = new Date()
@@ -820,12 +880,58 @@ export function Transactions() {
     })
   }
 
-  const handleEditTx = async (data: Partial<Transaction>) => {
+  const handleEditTx = async (data: Partial<Transaction> & { recurringFrequency: Frequency }) => {
     if (!selectedTx) return
-    await editTransaction(selectedTx.id, data)
+    const { recurringFrequency, ...txData } = data
+    const wasRecurring = selectedTx.is_recurring
+    const isNowRecurring = txData.is_recurring ?? wasRecurring
+    let recurringExpenseId = selectedTx.recurring_expense_id
+
+    if (!wasRecurring && isNowRecurring && !recurringExpenseId) {
+      const freq = recurringFrequency ?? 'monthly'
+      const txDate = (txData.transaction_date ?? selectedTx.transaction_date).split('T')[0]
+      const rec: RecurringExpense = {
+        id: generateId(),
+        user_id: selectedTx.user_id,
+        name: (txData.description ?? selectedTx.description) || selectedTx.category?.name || 'Recurring',
+        amount: selectedTx.amount,
+        currency: selectedTx.currency,
+        category_id: selectedTx.category_id,
+        subcategory_id: selectedTx.subcategory_id ?? null,
+        payment_method_id: txData.payment_method_id !== undefined ? txData.payment_method_id : selectedTx.payment_method_id,
+        frequency: freq,
+        next_payment_date: advanceDate(txDate, freq),
+        end_date: null,
+        is_active: true,
+        auto_record: false,
+        notes: null,
+        created_at: nowSGT(),
+        updated_at: nowSGT(),
+        category: selectedTx.category,
+      }
+      await saveRecurring(rec)
+      recurringExpenseId = rec.id
+    }
+
+    if (wasRecurring && !isNowRecurring && selectedTx.recurring_expense_id) {
+      const existing = recurringExpenses.find((r) => r.id === selectedTx.recurring_expense_id)
+      if (existing) await editRecurring({ ...existing, is_active: false, updated_at: nowSGT() })
+      recurringExpenseId = null
+    }
+
+    await editTransaction(selectedTx.id, { ...txData, recurring_expense_id: recurringExpenseId })
     setSelectedTx(null)
     setTxEditMode(false)
     toast('Transaction updated', { type: 'success' })
+  }
+
+  const handleStopRecurring = async () => {
+    if (!selectedTx?.recurring_expense_id) return
+    const existing = recurringExpenses.find((r) => r.id === selectedTx.recurring_expense_id)
+    if (existing) await editRecurring({ ...existing, is_active: false, updated_at: nowSGT() })
+    setSelectedTx(null)
+    setTxEditMode(false)
+    toast('Recurring schedule stopped', { type: 'success' })
   }
 
   const handleAddIncome = async (source: string, amountCents: number, description: string, date: string) => {
@@ -1029,6 +1135,11 @@ export function Transactions() {
         {selectedTx && !txEditMode && (
           <TransactionDetail
             transaction={selectedTx}
+            recurringFrequency={
+              selectedTx.recurring_expense_id
+                ? recurringExpenses.find((r) => r.id === selectedTx.recurring_expense_id)?.frequency
+                : undefined
+            }
             onEdit={() => setTxEditMode(true)}
             onDelete={() => handleDelete(selectedTx)}
             onClose={() => { setSelectedTx(null); setTxEditMode(false) }}
@@ -1038,6 +1149,7 @@ export function Transactions() {
           <EditTransactionForm
             transaction={selectedTx}
             onSave={handleEditTx}
+            onStopRecurring={selectedTx.recurring_expense_id ? handleStopRecurring : undefined}
             onCancel={() => setTxEditMode(false)}
           />
         )}
