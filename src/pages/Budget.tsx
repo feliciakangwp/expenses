@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { AmountDisplay } from '@/components/ui/AmountDisplay'
 import { Button } from '@/components/ui/Button'
+import { CategoryIcon } from '@/components/ui/CategoryIcon'
 import { PeriodSelector, periodToRange } from '@/components/ui/PeriodSelector'
 import { format } from 'date-fns'
 
@@ -93,6 +94,18 @@ export function Budget() {
   }, [budgets, transactions, year])
 
   const overspentCount = yearChartData.filter((d) => d.overspend > 0).length
+
+  const categorySpending = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; color: string; icon: string; amount: number }>()
+    for (const t of monthExpenses) {
+      const cat = t.category
+      if (!cat) continue
+      const existing = map.get(cat.id)
+      if (existing) existing.amount += t.amount
+      else map.set(cat.id, { id: cat.id, name: cat.name, color: cat.color, icon: cat.icon, amount: t.amount })
+    }
+    return Array.from(map.values()).sort((a, b) => b.amount - a.amount)
+  }, [monthExpenses])
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
@@ -211,94 +224,117 @@ export function Budget() {
           )}
         </Card>
 
-        {/* Year Overview Chart */}
-        {yearChartData.length > 0 && (
-          <Card className="p-4">
-            <div className="flex items-center justify-between mb-1">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                {year} Overview
-              </h3>
-              {overspentCount > 0 && (
-                <span className="text-xs font-semibold text-red-500 bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded-full">
-                  {overspentCount} month{overspentCount > 1 ? 's' : ''} over budget
-                </span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-4 mt-2 mb-4">
-              <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded-sm bg-emerald-500" />
-                <span className="text-xs text-gray-500">Within budget</span>
+        {/* Right column: Category Breakdown + Year Overview */}
+        <div className="flex flex-col gap-4">
+          {/* Category spending breakdown */}
+          {categorySpending.length > 0 && (
+            <Card>
+              <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Spending by Category</h3>
+                <span className="text-xs text-gray-400">{format(selectedDate, 'MMM yyyy')}</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded-sm bg-red-500" />
-                <span className="text-xs text-gray-500">Over budget</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded-sm bg-gray-300 dark:bg-gray-600" />
-                <span className="text-xs text-gray-500">No budget</span>
-              </div>
-            </div>
-
-            <ResponsiveContainer width="100%" height={180}>
-              <BarChart
-                data={yearChartData}
-                barCategoryGap="25%"
-                margin={{ top: 0, right: 0, left: -20, bottom: 0 }}
-              >
-                <XAxis dataKey="month" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-                <YAxis
-                  tick={{ fontSize: 10 }}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`}
-                />
-                <Tooltip
-                  content={({ active, payload, label }) => {
-                    if (!active || !payload?.length) return null
-                    const d = payload[0]?.payload
-                    if (!d) return null
-                    return (
-                      <div className="bg-white dark:bg-gray-900 rounded-xl p-3 shadow-lg border border-gray-100 dark:border-gray-800">
-                        <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">{label}</p>
-                        {d.hasBudget ? (
-                          <>
-                            <p className="text-xs text-gray-500">Budget: <span className="font-medium text-gray-700 dark:text-gray-300">${d.budgetAmt.toFixed(0)}</span></p>
-                            <p className={`text-xs ${d.overspend > 0 ? 'text-red-500' : 'text-emerald-600'}`}>
-                              Spent: <span className="font-medium">${d.totalSpent.toFixed(0)}</span>
-                            </p>
-                            {d.overspend > 0 && (
-                              <p className="text-xs text-red-500 font-medium">Over by: ${d.overspend.toFixed(0)}</p>
-                            )}
-                          </>
-                        ) : (
-                          <p className="text-xs text-gray-500">Spent: <span className="font-medium text-gray-700 dark:text-gray-300">${d.totalSpent.toFixed(0)}</span></p>
-                        )}
+              <div className="divide-y divide-gray-50 dark:divide-gray-800/50">
+                {categorySpending.map((cs) => (
+                  <div key={cs.id} className="flex items-center gap-3 px-4 py-3">
+                    <CategoryIcon icon={cs.icon} color={cs.color} size="sm" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between mb-1">
+                        <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{cs.name}</span>
+                        <AmountDisplay cents={cs.amount} size="md" />
                       </div>
-                    )
-                  }}
-                />
-                <Bar dataKey="noBudget" stackId="a" fill="#d1d5db" radius={[2, 2, 0, 0]} />
-                <Bar dataKey="withinBudget" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="overspend" stackId="a" fill="#ef4444" radius={[2, 2, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </Card>
-        )}
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-1 rounded-full bg-gray-100 dark:bg-gray-800">
+                          <div
+                            className="h-1 rounded-full transition-all"
+                            style={{ width: `${totalSpent > 0 ? (cs.amount / totalSpent) * 100 : 0}%`, backgroundColor: cs.color }}
+                          />
+                        </div>
+                        <span className="text-xs text-gray-400 w-7 text-right">
+                          {totalSpent > 0 ? ((cs.amount / totalSpent) * 100).toFixed(0) : 0}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
 
-        {/* Spending total when no chart data yet */}
-        {yearChartData.length === 0 && totalSpent > 0 && (
-          <Card className="p-4 md:col-span-2">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-              {format(selectedDate, 'MMMM')} Spending
-            </h3>
-            <AmountDisplay cents={totalSpent} size="xl" />
-            <p className="text-xs text-gray-400 mt-1">
-              {daysElapsed} day{daysElapsed !== 1 ? 's' : ''} elapsed ·{' '}
-              ~${(totalSpent / 100 / Math.max(1, daysElapsed)).toFixed(2)}/day
-            </p>
-          </Card>
-        )}
+          {/* Year Overview Chart */}
+          {yearChartData.length > 0 && (
+            <Card className="p-4">
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  {year} Overview
+                </h3>
+                {overspentCount > 0 && (
+                  <span className="text-xs font-semibold text-red-500 bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded-full">
+                    {overspentCount} month{overspentCount > 1 ? 's' : ''} over budget
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-4 mt-2 mb-4">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-sm bg-emerald-500" />
+                  <span className="text-xs text-gray-500">Within budget</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-sm bg-red-500" />
+                  <span className="text-xs text-gray-500">Over budget</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-sm bg-gray-300 dark:bg-gray-600" />
+                  <span className="text-xs text-gray-500">No budget</span>
+                </div>
+              </div>
+
+              <ResponsiveContainer width="100%" height={180}>
+                <BarChart
+                  data={yearChartData}
+                  barCategoryGap="25%"
+                  margin={{ top: 0, right: 0, left: -20, bottom: 0 }}
+                >
+                  <XAxis dataKey="month" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                  <YAxis
+                    tick={{ fontSize: 10 }}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`}
+                  />
+                  <Tooltip
+                    content={({ active, payload, label }) => {
+                      if (!active || !payload?.length) return null
+                      const d = payload[0]?.payload
+                      if (!d) return null
+                      return (
+                        <div className="bg-white dark:bg-gray-900 rounded-xl p-3 shadow-lg border border-gray-100 dark:border-gray-800">
+                          <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">{label}</p>
+                          {d.hasBudget ? (
+                            <>
+                              <p className="text-xs text-gray-500">Budget: <span className="font-medium text-gray-700 dark:text-gray-300">${d.budgetAmt.toFixed(0)}</span></p>
+                              <p className={`text-xs ${d.overspend > 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+                                Spent: <span className="font-medium">${d.totalSpent.toFixed(0)}</span>
+                              </p>
+                              {d.overspend > 0 && (
+                                <p className="text-xs text-red-500 font-medium">Over by: ${d.overspend.toFixed(0)}</p>
+                              )}
+                            </>
+                          ) : (
+                            <p className="text-xs text-gray-500">Spent: <span className="font-medium text-gray-700 dark:text-gray-300">${d.totalSpent.toFixed(0)}</span></p>
+                          )}
+                        </div>
+                      )
+                    }}
+                  />
+                  <Bar dataKey="noBudget" stackId="a" fill="#d1d5db" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="withinBudget" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="overspend" stackId="a" fill="#ef4444" radius={[2, 2, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </Card>
+          )}
+        </div>
       </div>
     </div>
   )

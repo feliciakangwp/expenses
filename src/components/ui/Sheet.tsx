@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -13,6 +13,17 @@ interface SheetProps {
 }
 
 export function Sheet({ open, onClose, title, children, className, fullHeight }: SheetProps) {
+  const [isDesktop, setIsDesktop] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
+  )
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)')
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+
   useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden'
@@ -35,18 +46,25 @@ export function Sheet({ open, onClose, title, children, className, fullHeight }:
             onClick={onClose}
           />
           <motion.div
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+            initial={isDesktop ? { opacity: 0, scale: 0.96 } : { y: '100%' }}
+            animate={isDesktop ? { opacity: 1, scale: 1 } : { y: 0 }}
+            exit={isDesktop ? { opacity: 0, scale: 0.96 } : { y: '100%' }}
+            transition={isDesktop ? { duration: 0.18 } : { type: 'spring', damping: 30, stiffness: 300 }}
             className={cn(
-              'fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl bg-white dark:bg-gray-900 shadow-2xl safe-area-inset-bottom',
-              fullHeight ? 'h-[95vh]' : 'max-h-[95vh]',
+              'fixed z-50 bg-white dark:bg-gray-900 shadow-2xl',
+              isDesktop
+                ? 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[520px] max-w-[90vw] rounded-3xl'
+                : 'bottom-0 left-0 right-0 rounded-t-3xl safe-area-inset-bottom',
+              fullHeight
+                ? isDesktop ? 'max-h-[90vh]' : 'h-[95vh]'
+                : isDesktop ? 'max-h-[90vh]' : 'max-h-[95vh]',
               className
             )}
           >
             <div className="flex items-center justify-between px-5 pt-4 pb-2">
-              <div className="mx-auto h-1 w-10 rounded-full bg-gray-200 dark:bg-gray-700 absolute top-3 left-1/2 -translate-x-1/2" />
+              {!isDesktop && (
+                <div className="h-1 w-10 rounded-full bg-gray-200 dark:bg-gray-700 absolute top-3 left-1/2 -translate-x-1/2" />
+              )}
               {title && (
                 <h2 className="text-base font-semibold text-gray-900 dark:text-gray-50">{title}</h2>
               )}

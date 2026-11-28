@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { subMonths, startOfMonth, endOfMonth, format, parseISO, eachDayOfInterval } from 'date-fns'
+import { ChevronRight, X } from 'lucide-react'
 
 const PM_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#3b82f6', '#ec4899', '#14b8a6', '#f97316', '#a855f7']
 import { useAppStore } from '@/store/app'
@@ -25,6 +26,7 @@ export function Insights() {
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [rangeMonths, setRangeMonths] = useState<RangeMonths>(1)
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
 
   const { start, end } = useMemo(() => {
     const endMonthDate = new Date(year, month - 1, 1)
@@ -124,6 +126,18 @@ export function Insights() {
     value: cs.amount / 100,
     color: cs.category.color,
   }))
+
+  const selectedCategory = useMemo(
+    () => catSpending.find((cs) => cs.category.id === selectedCategoryId) ?? null,
+    [catSpending, selectedCategoryId]
+  )
+
+  const categoryTransactions = useMemo(() => {
+    if (!selectedCategoryId) return []
+    return expenses
+      .filter((t) => t.category_id === selectedCategoryId)
+      .sort((a, b) => b.transaction_date.localeCompare(a.transaction_date))
+  }, [expenses, selectedCategoryId])
 
   const pmSpending = useMemo(() => {
     const map = new Map<string, { name: string; amount: number }>()
@@ -353,10 +367,15 @@ export function Insights() {
           <Card className="md:col-span-2">
             <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Category Breakdown</h3>
+              <p className="text-xs text-gray-400 mt-0.5">Tap a category to see its transactions</p>
             </div>
             <div className="divide-y divide-gray-50 dark:divide-gray-800/50">
               {catSpending.map((cs) => (
-                <div key={cs.category.id} className="flex items-center gap-3 px-4 py-3">
+                <button
+                  key={cs.category.id}
+                  onClick={() => setSelectedCategoryId(selectedCategoryId === cs.category.id ? null : cs.category.id)}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors text-left"
+                >
                   <CategoryIcon icon={cs.category.icon} color={cs.category.color} size="sm" />
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between mb-1">
@@ -370,7 +389,54 @@ export function Insights() {
                           style={{ width: `${cs.percentage}%`, backgroundColor: cs.category.color }}
                         />
                       </div>
-                      <span className="text-xs text-gray-400">{cs.percentage.toFixed(0)}%</span>
+                      <span className="text-xs text-gray-400 w-7 text-right">{cs.percentage.toFixed(0)}%</span>
+                    </div>
+                  </div>
+                  <ChevronRight
+                    size={14}
+                    className={`text-gray-300 dark:text-gray-600 flex-shrink-0 transition-transform ${selectedCategoryId === cs.category.id ? 'rotate-90' : ''}`}
+                  />
+                </button>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {/* Category drill-down */}
+        {selectedCategory && categoryTransactions.length > 0 && (
+          <Card className="md:col-span-2">
+            <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center gap-3">
+              <CategoryIcon icon={selectedCategory.category.icon} color={selectedCategory.category.color} size="sm" />
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{selectedCategory.category.name}</h3>
+                <p className="text-xs text-gray-400">{categoryTransactions.length} transaction{categoryTransactions.length !== 1 ? 's' : ''}</p>
+              </div>
+              <AmountDisplay cents={selectedCategory.amount} size="md" />
+              <button
+                onClick={() => setSelectedCategoryId(null)}
+                className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ml-1"
+              >
+                <X size={15} />
+              </button>
+            </div>
+            <div className="divide-y divide-gray-50 dark:divide-gray-800/50">
+              {categoryTransactions.map((t) => (
+                <div key={t.id} className="flex items-center gap-3 px-4 py-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-800 dark:text-gray-200 truncate">
+                        {t.description || t.merchant || selectedCategory.category.name}
+                      </span>
+                      <AmountDisplay cents={t.amount} size="md" />
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-xs text-gray-400">{format(parseISO(t.transaction_date.split('T')[0]), 'd MMM yyyy')}</span>
+                      {t.payment_method?.name && (
+                        <span className="text-xs text-gray-400">· {t.payment_method.name}</span>
+                      )}
+                      {t.subcategory?.name && (
+                        <span className="text-xs text-gray-400">· {t.subcategory.name}</span>
+                      )}
                     </div>
                   </div>
                 </div>

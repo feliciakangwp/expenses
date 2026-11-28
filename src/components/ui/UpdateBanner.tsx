@@ -7,13 +7,15 @@ export function UpdateBanner() {
     updateServiceWorker,
   } = useRegisterSW({
     onRegisteredSW(swUrl, registration) {
-      // Poll every 60 s so an open tab picks up new deploys promptly.
-      setInterval(async () => {
+      // Check immediately on load, then every 30 s.
+      const check = async () => {
         if (!registration?.installing && navigator.onLine) {
           const res = await fetch(swUrl, { cache: 'no-store' })
           if (res?.status === 200) await registration?.update()
         }
-      }, 60_000)
+      }
+      check()
+      setInterval(check, 30_000)
     },
   })
 
