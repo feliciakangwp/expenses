@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Search, Download, X, Plus, TrendingUp, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
 import { useAppStore } from '@/store/app'
 import { useData } from '@/hooks/useData'
@@ -18,6 +18,8 @@ import { format, differenceInDays, parseISO } from 'date-fns'
 
 type TabType = 'expenses' | 'income' | 'investments'
 type InvSort = 'ticker' | 'newest' | 'cost'
+
+const fmtPx = (p: number) => Number(p.toFixed(2)).toString()
 
 // ─── Income Add Form ──────────────────────────────────────────────────────────
 
@@ -510,8 +512,8 @@ function InvestmentsTab() {
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                     {isOpt
-                      ? `$${inv.strike_price?.toFixed(0) ?? '—'} strike · ${inv.quantity} contract${inv.quantity !== 1 ? 's' : ''} · exp ${inv.expiry_date ?? '—'}`
-                      : `$${inv.buy_price.toFixed(2)} × ${inv.quantity} · ${daysOpen(inv.buy_date)}d`}
+                      ? `$${inv.strike_price != null ? fmtPx(inv.strike_price) : '—'} strike · ${inv.quantity} contract${inv.quantity !== 1 ? 's' : ''} · exp ${inv.expiry_date ?? '—'}`
+                      : `$${fmtPx(inv.buy_price)} × ${inv.quantity} · ${daysOpen(inv.buy_date)}d`}
                   </p>
                 </div>
                 <div className="text-right flex-shrink-0">
@@ -550,9 +552,9 @@ function InvestmentsTab() {
                     : 'Closed'
                   const subtext = isOpt
                     ? inv.is_expired
-                      ? `Premium $${inv.buy_price.toFixed(2)} × ${inv.quantity} → Expired worthless`
-                      : `Premium $${inv.buy_price.toFixed(2)} → Buyback $${inv.sell_price!.toFixed(2)} × ${inv.quantity}`
-                    : `Buy $${inv.buy_price.toFixed(2)} → Sell $${inv.sell_price!.toFixed(2)} × ${inv.quantity}`
+                      ? `Premium $${fmtPx(inv.buy_price)} × ${inv.quantity} → Expired worthless`
+                      : `Premium $${fmtPx(inv.buy_price)} → Buyback $${fmtPx(inv.sell_price!)} × ${inv.quantity}`
+                    : `Buy $${fmtPx(inv.buy_price)} → Sell $${fmtPx(inv.sell_price!)} × ${inv.quantity}`
                   return (
                     <button
                       key={inv.id}
@@ -613,7 +615,13 @@ export function Transactions() {
   const { toast } = useToast()
 
   const now = new Date()
-  const [tab, setTab] = useState<TabType>('expenses')
+  const [tab, setTab] = useState<TabType>(() => {
+    try { return (sessionStorage.getItem('txn-tab') as TabType) || 'expenses' } catch { return 'expenses' }
+  })
+
+  useEffect(() => {
+    try { sessionStorage.setItem('txn-tab', tab) } catch {}
+  }, [tab])
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [search, setSearch] = useState('')

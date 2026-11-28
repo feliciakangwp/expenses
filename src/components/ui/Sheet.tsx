@@ -25,11 +25,7 @@ export function Sheet({ open, onClose, title, children, className, fullHeight }:
   }, [])
 
   useEffect(() => {
-    if (open) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = ''
-    }
+    document.body.style.overflow = open ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
   }, [open])
 
@@ -37,6 +33,7 @@ export function Sheet({ open, onClose, title, children, className, fullHeight }:
     <AnimatePresence>
       {open && (
         <>
+          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -45,38 +42,67 @@ export function Sheet({ open, onClose, title, children, className, fullHeight }:
             className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
             onClick={onClose}
           />
-          <motion.div
-            initial={isDesktop ? { opacity: 0, scale: 0.96 } : { y: '100%' }}
-            animate={isDesktop ? { opacity: 1, scale: 1 } : { y: 0 }}
-            exit={isDesktop ? { opacity: 0, scale: 0.96 } : { y: '100%' }}
-            transition={isDesktop ? { duration: 0.18 } : { type: 'spring', damping: 30, stiffness: 300 }}
-            className={cn(
-              'fixed z-50 bg-white dark:bg-gray-900 shadow-2xl',
-              isDesktop
-                ? 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[520px] max-w-[90vw] rounded-3xl'
-                : 'bottom-0 left-0 right-0 rounded-t-3xl safe-area-inset-bottom',
-              fullHeight
-                ? isDesktop ? 'max-h-[90vh]' : 'h-[95vh]'
-                : isDesktop ? 'max-h-[90vh]' : 'max-h-[95vh]',
-              className
-            )}
-          >
-            <div className="flex items-center justify-between px-5 pt-4 pb-2">
-              {!isDesktop && (
-                <div className="h-1 w-10 rounded-full bg-gray-200 dark:bg-gray-700 absolute top-3 left-1/2 -translate-x-1/2" />
-              )}
-              {title && (
-                <h2 className="text-base font-semibold text-gray-900 dark:text-gray-50">{title}</h2>
-              )}
-              <button
-                onClick={onClose}
-                className="ml-auto rounded-xl p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+
+          {isDesktop ? (
+            /* Desktop: flex-centered wrapper avoids Framer Motion transform conflict */
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-6 pointer-events-none">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 8 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 8 }}
+                transition={{ duration: 0.16, ease: 'easeOut' }}
+                className={cn(
+                  'pointer-events-auto w-[440px] max-w-[90vw] rounded-3xl bg-white dark:bg-gray-900 shadow-2xl overflow-hidden',
+                  fullHeight ? 'max-h-[90vh]' : 'max-h-[85vh]',
+                  className
+                )}
               >
-                <X size={18} />
-              </button>
+                <div className="flex items-center justify-between px-5 pt-4 pb-2">
+                  {title && (
+                    <h2 className="text-base font-semibold text-gray-900 dark:text-gray-50">{title}</h2>
+                  )}
+                  <button
+                    onClick={onClose}
+                    className="ml-auto rounded-xl p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+                <div className="overflow-y-auto" style={{ maxHeight: 'calc(100% - 56px)' }}>
+                  {children}
+                </div>
+              </motion.div>
             </div>
-            <div className="overflow-y-auto h-[calc(100%-56px)]">{children}</div>
-          </motion.div>
+          ) : (
+            /* Mobile: bottom sheet */
+            <div className="fixed bottom-0 left-0 right-0 z-50">
+              <motion.div
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                className={cn(
+                  'rounded-t-3xl bg-white dark:bg-gray-900 shadow-2xl safe-area-inset-bottom',
+                  fullHeight ? 'h-[95vh]' : 'max-h-[95vh]',
+                  className
+                )}
+              >
+                <div className="flex items-center justify-between px-5 pt-4 pb-2 relative">
+                  <div className="absolute top-3 left-1/2 -translate-x-1/2 h-1 w-10 rounded-full bg-gray-200 dark:bg-gray-700" />
+                  {title && (
+                    <h2 className="text-base font-semibold text-gray-900 dark:text-gray-50">{title}</h2>
+                  )}
+                  <button
+                    onClick={onClose}
+                    className="ml-auto rounded-xl p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+                <div className="overflow-y-auto h-[calc(100%-56px)]">{children}</div>
+              </motion.div>
+            </div>
+          )}
         </>
       )}
     </AnimatePresence>
