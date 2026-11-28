@@ -609,7 +609,7 @@ function InvestmentsTab() {
 
 export function Transactions() {
   const { transactions, categories } = useAppStore()
-  const { removeTransaction, saveTransaction } = useData()
+  const { removeTransaction, saveTransaction, restoreTransaction } = useData()
   const { toast } = useToast()
 
   const now = new Date()
@@ -669,10 +669,7 @@ export function Transactions() {
       type: 'info',
       action: {
         label: 'Undo',
-        onClick: () => {
-          const { addTransaction } = useAppStore.getState()
-          addTransaction(tx)
-        },
+        onClick: () => restoreTransaction(tx),
       },
     })
   }

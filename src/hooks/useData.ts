@@ -39,7 +39,6 @@ export function useData() {
       let cats = catRes.data as Category[] | null
       if (!cats || cats.length === 0) {
         const toInsert = DEFAULT_CATEGORIES
-          .filter((c) => c.transaction_type === 'expense')
           .map((c, i) => ({ id: generateId(), user_id: currentUser.id, ...c, is_system: false, sort_order: i + 1, created_at: nowSGT(), updated_at: nowSGT() }))
         const { data: inserted } = await supabase.from('categories').insert(toInsert as any).select('*')
         cats = inserted as Category[] | null
@@ -200,6 +199,28 @@ export function useData() {
     [isDemoMode, deleteTransaction]
   )
 
+  const restoreTransaction = useCallback(
+    async (tx: Transaction): Promise<void> => {
+      addTransaction(tx)
+      if (isDemoMode) return
+      const row = {
+        id: tx.id, user_id: tx.user_id, type: tx.type,
+        category_id: tx.category_id, subcategory_id: tx.subcategory_id,
+        amount: tx.amount, currency: tx.currency,
+        original_amount: tx.original_amount, original_currency: tx.original_currency,
+        exchange_rate: tx.exchange_rate, description: tx.description,
+        merchant: tx.merchant, payment_method_id: tx.payment_method_id,
+        is_needs: tx.is_needs, is_fixed: tx.is_fixed,
+        is_recurring: tx.is_recurring, recurring_expense_id: tx.recurring_expense_id,
+        notes: tx.notes, transaction_date: tx.transaction_date,
+        created_at: tx.created_at, updated_at: tx.updated_at,
+      }
+      const { error } = await supabase.from('transactions').insert([row] as any)
+      if (error) console.error('restoreTransaction:', error)
+    },
+    [isDemoMode, addTransaction]
+  )
+
   const savePaymentMethod = useCallback(
     async (pm: PaymentMethod): Promise<void> => {
       if (isDemoMode) {
@@ -275,11 +296,21 @@ export function useData() {
   )
 
   // Recurring expenses — optimistic
+  // Strip joined fields (category, payment_method) before sending to Supabase
+  const toRecurringRow = (rec: RecurringExpense) => ({
+    id: rec.id, user_id: rec.user_id, name: rec.name, amount: rec.amount,
+    currency: rec.currency, category_id: rec.category_id, subcategory_id: rec.subcategory_id,
+    payment_method_id: rec.payment_method_id, frequency: rec.frequency,
+    next_payment_date: rec.next_payment_date, is_active: rec.is_active,
+    auto_record: rec.auto_record, notes: rec.notes,
+    created_at: rec.created_at, updated_at: rec.updated_at,
+  })
+
   const saveRecurring = useCallback(
     async (rec: RecurringExpense): Promise<void> => {
       addRecurringExpense(rec)
       if (isDemoMode) return
-      const { error } = await supabase.from('recurring_expenses').insert([rec] as any)
+      const { error } = await supabase.from('recurring_expenses').insert([toRecurringRow(rec)] as any)
       if (error) console.error('saveRecurring:', error)
     },
     [isDemoMode, addRecurringExpense]
@@ -289,7 +320,8 @@ export function useData() {
     async (rec: RecurringExpense): Promise<void> => {
       updateRecurringExpense(rec)
       if (isDemoMode) return
-      const { error } = await (supabase.from('recurring_expenses') as any).update({ ...rec, updated_at: nowSGT() }).eq('id', rec.id)
+      const row = { ...toRecurringRow(rec), updated_at: nowSGT() }
+      const { error } = await (supabase.from('recurring_expenses') as any).update(row).eq('id', rec.id)
       if (error) console.error('editRecurring:', error)
     },
     [isDemoMode, updateRecurringExpense]
@@ -347,7 +379,7 @@ export function useData() {
 
   return {
     fetchAll,
-    saveTransaction, editTransaction, removeTransaction,
+    saveTransaction, editTransaction, removeTransaction, restoreTransaction,
     saveCategory, editCategory, deleteCategory,
     savePaymentMethod, deletePaymentMethod,
     saveBudget,
