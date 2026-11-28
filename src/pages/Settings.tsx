@@ -153,9 +153,9 @@ export function Settings() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <PageHeader title="Settings" />
 
-      <div className="px-5 md:max-w-lg flex flex-col gap-4">
-        {/* Profile */}
-        <Card className="p-4">
+      <div className="px-5 md:px-8 pb-8 max-w-5xl mx-auto">
+        {/* Profile — full width */}
+        <Card className="p-4 mb-4">
           <div className="flex items-center gap-3">
             <div className="h-12 w-12 rounded-2xl bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center">
               <User size={22} className="text-primary-600 dark:text-primary-400" />
@@ -178,281 +178,283 @@ export function Settings() {
           </div>
         </Card>
 
-        {/* Appearance */}
-        <Card className="p-4">
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Appearance</h3>
-          <div className="grid grid-cols-3 gap-2 mb-4">
-            {THEMES.map(({ value, label, icon: Icon }) => (
-              <button
-                key={value}
-                onClick={() => { setTheme(value); savePreferences({ theme: value }) }}
-                className={cn(
-                  'flex flex-col items-center gap-1.5 rounded-xl p-3 transition-all',
-                  theme === value
-                    ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300'
-                    : 'bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
-                )}
-              >
-                <Icon size={18} />
-                <span className="text-xs font-medium">{label}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {privacyMode ? <EyeOff size={16} className="text-gray-500" /> : <Eye size={16} className="text-gray-500" />}
-              <span className="text-sm text-gray-700 dark:text-gray-300">Privacy Mode</span>
-            </div>
-            <button
-              onClick={() => setPrivacyMode(!privacyMode)}
-              className={cn(
-                'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
-                privacyMode ? 'bg-primary-600' : 'bg-gray-200 dark:bg-gray-700'
-              )}
-            >
-              <span
-                className={cn(
-                  'inline-block h-4 w-4 rounded-full bg-white shadow transition-transform',
-                  privacyMode ? 'translate-x-6' : 'translate-x-1'
-                )}
-              />
-            </button>
-          </div>
-        </Card>
-
-        {/* Accent Color */}
-        <Card className="p-4">
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Accent Color</h3>
-          <div className="grid grid-cols-6 gap-3">
-            {ACCENT_COLORS.map(({ value, bg, label }) => (
-              <button
-                key={value}
-                onClick={() => { setAccentColor(value); savePreferences({ accentColor: value }) }}
-                title={label}
-                className={cn(
-                  'h-9 w-full rounded-xl transition-all',
-                  bg,
-                  accentColor === value && 'ring-2 ring-offset-2 ring-gray-400 dark:ring-gray-500 scale-110'
-                )}
-              />
-            ))}
-          </div>
-        </Card>
-
-        {/* Payment Methods */}
-        <Card>
-          <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Payment Methods</h3>
-            <button
-              onClick={() => setShowAddCard(true)}
-              className="text-xs font-medium text-primary-600 dark:text-primary-400"
-            >
-              + Add
-            </button>
-          </div>
-          {paymentMethods.filter(p => !p.is_archived).length === 0 ? (
-            <div className="px-4 py-6 text-center text-sm text-gray-400">No cards added yet</div>
-          ) : (
-            <div className="divide-y divide-gray-50 dark:divide-gray-800/50">
-              {paymentMethods.filter(p => !p.is_archived).map((pm) => (
-                <div key={pm.id} className="flex items-center gap-3 px-4 py-3">
-                  <CreditCard size={16} className="text-gray-400" />
-                  <span className="flex-1 text-sm text-gray-800 dark:text-gray-200">{pm.name}</span>
+        {/* Two-column grid on desktop */}
+        <div className="flex flex-col gap-4 md:grid md:grid-cols-2 md:gap-6 md:items-start mb-4">
+          {/* Left column: Appearance + Accent Color */}
+          <div className="flex flex-col gap-4">
+            {/* Appearance */}
+            <Card className="p-4">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Appearance</h3>
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                {THEMES.map(({ value, label, icon: Icon }) => (
                   <button
-                    onClick={() => deletePaymentMethod(pm.id)}
-                    className="text-gray-300 dark:text-gray-600 hover:text-red-500 transition-colors"
+                    key={value}
+                    onClick={() => { setTheme(value); savePreferences({ theme: value }) }}
+                    className={cn(
+                      'flex flex-col items-center gap-1.5 rounded-xl p-3 transition-all',
+                      theme === value
+                        ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300'
+                        : 'bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+                    )}
                   >
-                    <Trash2 size={15} />
+                    <Icon size={18} />
+                    <span className="text-xs font-medium">{label}</span>
                   </button>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {privacyMode ? <EyeOff size={16} className="text-gray-500" /> : <Eye size={16} className="text-gray-500" />}
+                  <span className="text-sm text-gray-700 dark:text-gray-300">Privacy Mode</span>
                 </div>
-              ))}
-            </div>
-          )}
-          {showAddCard && (
-            <div className="px-4 pb-4 pt-2 border-t border-gray-100 dark:border-gray-800">
-              <div className="flex gap-2">
-                <input
-                  value={newCardName}
-                  onChange={e => setNewCardName(e.target.value)}
-                  placeholder="Card name (e.g. DBS Visa)"
-                  onKeyDown={e => e.key === 'Enter' && handleAddCard()}
-                  className="flex-1 rounded-xl bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500/50"
-                  autoFocus
-                />
-                <Button size="sm" onClick={handleAddCard} disabled={!newCardName.trim()}>Add</Button>
-              </div>
-            </div>
-          )}
-        </Card>
-
-        {/* Categories */}
-        <Card>
-          <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Categories</h3>
-            <button onClick={openAddCat} className="text-xs font-medium text-primary-600 dark:text-primary-400">+ Add</button>
-          </div>
-
-          {/* Category list */}
-          <div className="divide-y divide-gray-50 dark:divide-gray-800/50 mt-1">
-            {expenseCategories.map((cat) => (
-              <div key={cat.id} className="flex items-center gap-3 px-4 py-2.5">
-                <CategoryIcon icon={cat.icon} color={cat.color} size="sm" />
-                <span className="flex-1 text-sm text-gray-800 dark:text-gray-200">{cat.name}</span>
-                <button onClick={() => openEditCat(cat)} className="text-gray-300 dark:text-gray-600 hover:text-primary-500 transition-colors mr-1">
-                  <Pencil size={14} />
-                </button>
-                <button onClick={() => handleDeleteCat(cat)} className="text-gray-300 dark:text-gray-600 hover:text-red-500 transition-colors">
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            ))}
-            {expenseCategories.length === 0 && (
-              <div className="px-4 py-6 text-center text-sm text-gray-400">No expense categories yet</div>
-            )}
-          </div>
-
-          {/* Add/Edit form */}
-          {showCatForm && (
-            <div className="px-4 pb-4 pt-3 border-t border-gray-100 dark:border-gray-800">
-              <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-3">
-                {editingCat ? 'Edit Category' : 'New Category'}
-              </p>
-
-              {/* Name input */}
-              <input
-                value={catForm.name}
-                onChange={(e) => setCatForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="Category name"
-                className="w-full rounded-xl bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500/50 mb-3"
-                autoFocus
-              />
-
-              {/* Icon + Color row */}
-              <div className="flex items-center gap-3 mb-3">
                 <button
-                  onClick={() => setShowIconPicker((v) => !v)}
-                  className="flex items-center gap-2 rounded-xl bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  onClick={() => setPrivacyMode(!privacyMode)}
+                  className={cn(
+                    'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
+                    privacyMode ? 'bg-primary-600' : 'bg-gray-200 dark:bg-gray-700'
+                  )}
                 >
-                  <CategoryIcon icon={catForm.icon} color={catForm.color} size="sm" />
-                  <span className="text-xs">Icon</span>
+                  <span
+                    className={cn(
+                      'inline-block h-4 w-4 rounded-full bg-white shadow transition-transform',
+                      privacyMode ? 'translate-x-6' : 'translate-x-1'
+                    )}
+                  />
                 </button>
-                <div className="flex flex-wrap gap-1.5 flex-1">
-                  {COLOR_OPTIONS.map((c) => (
-                    <button
-                      key={c}
-                      onClick={() => setCatForm((f) => ({ ...f, color: c }))}
-                      className={cn(
-                        'h-6 w-6 rounded-full transition-all',
-                        catForm.color === c && 'ring-2 ring-offset-1 ring-gray-400 dark:ring-gray-500 scale-110'
-                      )}
-                      style={{ backgroundColor: c }}
-                    />
-                  ))}
-                </div>
               </div>
+            </Card>
 
-              {/* Icon picker grid */}
-              {showIconPicker && (
-                <div className="grid grid-cols-8 gap-1.5 mb-3 p-2 rounded-xl bg-gray-50 dark:bg-gray-800">
-                  {ICON_OPTIONS.map(({ name, Icon }) => (
-                    <button
-                      key={name}
-                      onClick={() => { setCatForm((f) => ({ ...f, icon: name })); setShowIconPicker(false) }}
-                      className={cn(
-                        'flex items-center justify-center h-8 w-8 rounded-lg transition-all',
-                        catForm.icon === name
-                          ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-400'
-                          : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'
-                      )}
-                    >
-                      <Icon size={16} />
-                    </button>
+            {/* Accent Color */}
+            <Card className="p-4">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Accent Color</h3>
+              <div className="grid grid-cols-6 gap-3">
+                {ACCENT_COLORS.map(({ value, bg, label }) => (
+                  <button
+                    key={value}
+                    onClick={() => { setAccentColor(value); savePreferences({ accentColor: value }) }}
+                    title={label}
+                    className={cn(
+                      'h-9 w-full rounded-xl transition-all',
+                      bg,
+                      accentColor === value && 'ring-2 ring-offset-2 ring-gray-400 dark:ring-gray-500 scale-110'
+                    )}
+                  />
+                ))}
+              </div>
+            </Card>
+          </div>
+
+          {/* Right column: Payment Methods + Categories */}
+          <div className="flex flex-col gap-4">
+            {/* Payment Methods */}
+            <Card>
+              <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Payment Methods</h3>
+                <button
+                  onClick={() => setShowAddCard(true)}
+                  className="text-xs font-medium text-primary-600 dark:text-primary-400"
+                >
+                  + Add
+                </button>
+              </div>
+              {paymentMethods.filter(p => !p.is_archived).length === 0 ? (
+                <div className="px-4 py-6 text-center text-sm text-gray-400">No cards added yet</div>
+              ) : (
+                <div className="divide-y divide-gray-50 dark:divide-gray-800/50">
+                  {paymentMethods.filter(p => !p.is_archived).map((pm) => (
+                    <div key={pm.id} className="flex items-center gap-3 px-4 py-3">
+                      <CreditCard size={16} className="text-gray-400" />
+                      <span className="flex-1 text-sm text-gray-800 dark:text-gray-200">{pm.name}</span>
+                      <button
+                        onClick={() => deletePaymentMethod(pm.id)}
+                        className="text-gray-300 dark:text-gray-600 hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
                   ))}
                 </div>
               )}
+              {showAddCard && (
+                <div className="px-4 pb-4 pt-2 border-t border-gray-100 dark:border-gray-800">
+                  <div className="flex gap-2">
+                    <input
+                      value={newCardName}
+                      onChange={e => setNewCardName(e.target.value)}
+                      placeholder="Card name (e.g. DBS Visa)"
+                      onKeyDown={e => e.key === 'Enter' && handleAddCard()}
+                      className="flex-1 rounded-xl bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500/50"
+                      autoFocus
+                    />
+                    <Button size="sm" onClick={handleAddCard} disabled={!newCardName.trim()}>Add</Button>
+                  </div>
+                </div>
+              )}
+            </Card>
 
-              <div className="flex gap-2">
-                <Button size="sm" onClick={handleSaveCat} disabled={!catForm.name.trim()} className="flex-1 gap-1">
-                  <Check size={14} /> {editingCat ? 'Save' : 'Add'}
-                </Button>
-                <Button size="sm" variant="secondary" onClick={() => { setShowCatForm(false); setEditingCat(null) }} className="gap-1">
-                  <X size={14} /> Cancel
-                </Button>
+            {/* Categories */}
+            <Card>
+              <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Categories</h3>
+                <button onClick={openAddCat} className="text-xs font-medium text-primary-600 dark:text-primary-400">+ Add</button>
               </div>
-            </div>
-          )}
-        </Card>
 
-        {/* Data */}
-        {!isDemoMode && (
-          <Card>
-            <div className="divide-y divide-gray-50 dark:divide-gray-800/50">
-              {[
-                { icon: Shield, label: 'Security', action: () => {} },
-              ].map(({ icon: Icon, label, action }) => (
+              <div className="divide-y divide-gray-50 dark:divide-gray-800/50 mt-1">
+                {expenseCategories.map((cat) => (
+                  <div key={cat.id} className="flex items-center gap-3 px-4 py-2.5">
+                    <CategoryIcon icon={cat.icon} color={cat.color} size="sm" />
+                    <span className="flex-1 text-sm text-gray-800 dark:text-gray-200">{cat.name}</span>
+                    <button onClick={() => openEditCat(cat)} className="text-gray-300 dark:text-gray-600 hover:text-primary-500 transition-colors mr-1">
+                      <Pencil size={14} />
+                    </button>
+                    <button onClick={() => handleDeleteCat(cat)} className="text-gray-300 dark:text-gray-600 hover:text-red-500 transition-colors">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+                {expenseCategories.length === 0 && (
+                  <div className="px-4 py-6 text-center text-sm text-gray-400">No expense categories yet</div>
+                )}
+              </div>
+
+              {showCatForm && (
+                <div className="px-4 pb-4 pt-3 border-t border-gray-100 dark:border-gray-800">
+                  <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-3">
+                    {editingCat ? 'Edit Category' : 'New Category'}
+                  </p>
+
+                  <input
+                    value={catForm.name}
+                    onChange={(e) => setCatForm((f) => ({ ...f, name: e.target.value }))}
+                    placeholder="Category name"
+                    className="w-full rounded-xl bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500/50 mb-3"
+                    autoFocus
+                  />
+
+                  <div className="flex items-center gap-3 mb-3">
+                    <button
+                      onClick={() => setShowIconPicker((v) => !v)}
+                      className="flex items-center gap-2 rounded-xl bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <CategoryIcon icon={catForm.icon} color={catForm.color} size="sm" />
+                      <span className="text-xs">Icon</span>
+                    </button>
+                    <div className="flex flex-wrap gap-1.5 flex-1">
+                      {COLOR_OPTIONS.map((c) => (
+                        <button
+                          key={c}
+                          onClick={() => setCatForm((f) => ({ ...f, color: c }))}
+                          className={cn(
+                            'h-6 w-6 rounded-full transition-all',
+                            catForm.color === c && 'ring-2 ring-offset-1 ring-gray-400 dark:ring-gray-500 scale-110'
+                          )}
+                          style={{ backgroundColor: c }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {showIconPicker && (
+                    <div className="grid grid-cols-8 gap-1.5 mb-3 p-2 rounded-xl bg-gray-50 dark:bg-gray-800">
+                      {ICON_OPTIONS.map(({ name, Icon }) => (
+                        <button
+                          key={name}
+                          onClick={() => { setCatForm((f) => ({ ...f, icon: name })); setShowIconPicker(false) }}
+                          className={cn(
+                            'flex items-center justify-center h-8 w-8 rounded-lg transition-all',
+                            catForm.icon === name
+                              ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-400'
+                              : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'
+                          )}
+                        >
+                          <Icon size={16} />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={handleSaveCat} disabled={!catForm.name.trim()} className="flex-1 gap-1">
+                      <Check size={14} /> {editingCat ? 'Save' : 'Add'}
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => { setShowCatForm(false); setEditingCat(null) }} className="gap-1">
+                      <X size={14} /> Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </Card>
+          </div>
+        </div>
+
+        {/* Bottom section — full width, constrained on desktop */}
+        <div className="flex flex-col gap-4 md:max-w-md">
+          {/* Security */}
+          {!isDemoMode && (
+            <Card>
+              <div className="divide-y divide-gray-50 dark:divide-gray-800/50">
                 <button
-                  key={label}
-                  onClick={action}
+                  onClick={() => {}}
                   className="flex w-full items-center gap-3 px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                 >
-                  <Icon size={18} className="text-gray-500 dark:text-gray-400" />
-                  <span className="flex-1 text-sm text-gray-700 dark:text-gray-300 text-left">{label}</span>
+                  <Shield size={18} className="text-gray-500 dark:text-gray-400" />
+                  <span className="flex-1 text-sm text-gray-700 dark:text-gray-300 text-left">Security</span>
                   <ChevronRight size={16} className="text-gray-300 dark:text-gray-600" />
                 </button>
-              ))}
-            </div>
-          </Card>
-        )}
-
-        {/* Demo Mode Info */}
-        {isDemoMode && (
-          <Card className="p-4">
-            <div className="flex gap-3">
-              <Info size={18} className="text-amber-500 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">Demo Mode Active</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                  You're viewing sample data. Sign in to save your real transactions across devices.
-                </p>
-                {isSupabaseConfigured && (
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      useAppStore.getState().reset()
-                      window.location.reload()
-                    }}
-                    className="w-full"
-                  >
-                    Sign in / Create account
-                  </Button>
-                )}
               </div>
+            </Card>
+          )}
+
+          {/* Demo Mode Info */}
+          {isDemoMode && (
+            <Card className="p-4">
+              <div className="flex gap-3">
+                <Info size={18} className="text-amber-500 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">Demo Mode Active</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                    You're viewing sample data. Sign in to save your real transactions across devices.
+                  </p>
+                  {isSupabaseConfigured && (
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        useAppStore.getState().reset()
+                        window.location.reload()
+                      }}
+                      className="w-full"
+                    >
+                      Sign in / Create account
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* App Info */}
+          <Card className="p-4">
+            <div className="flex justify-between text-xs text-gray-400">
+              <span>Expenses</span>
+              <span>v1.0.0</span>
             </div>
           </Card>
-        )}
 
-        {/* App Info */}
-        <Card className="p-4">
-          <div className="flex justify-between text-xs text-gray-400">
-            <span>Expenses</span>
-            <span>v1.0.0</span>
-          </div>
-        </Card>
-
-        {/* Sign Out */}
-        {!isDemoMode && (
-          <Button
-            variant="ghost"
-            size="lg"
-            onClick={handleSignOut}
-            loading={signingOut}
-            className="w-full text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 gap-2"
-          >
-            <LogOut size={18} />
-            Sign Out
-          </Button>
-        )}
+          {/* Sign Out */}
+          {!isDemoMode && (
+            <Button
+              variant="ghost"
+              size="lg"
+              onClick={handleSignOut}
+              loading={signingOut}
+              className="w-full text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 gap-2"
+            >
+              <LogOut size={18} />
+              Sign Out
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   )

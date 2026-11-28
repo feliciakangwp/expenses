@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { subMonths, startOfMonth, endOfMonth, format, parseISO, eachDayOfInterval } from 'date-fns'
 
 const PM_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#3b82f6', '#ec4899', '#14b8a6', '#f97316', '#a855f7']
 import { useAppStore } from '@/store/app'
@@ -9,16 +10,39 @@ import { Card } from '@/components/ui/Card'
 import { AmountDisplay } from '@/components/ui/AmountDisplay'
 import { CategoryIcon } from '@/components/ui/CategoryIcon'
 import { PeriodSelector, periodToRange } from '@/components/ui/PeriodSelector'
-import { eachDayOfInterval, parseISO } from 'date-fns'
-import { format } from 'date-fns'
+
+type RangeMonths = 1 | 3 | 6 | 12
+const RANGES: { value: RangeMonths; label: string }[] = [
+  { value: 1, label: '1M' },
+  { value: 3, label: '3M' },
+  { value: 6, label: '6M' },
+  { value: 12, label: '12M' },
+]
 
 export function Insights() {
   const { transactions, privacyMode } = useAppStore()
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
+  const [rangeMonths, setRangeMonths] = useState<RangeMonths>(1)
 
-  const { start, end } = periodToRange(year, month)
+  const { start, end } = useMemo(() => {
+    const endMonthDate = new Date(year, month - 1, 1)
+    const endDate = endOfMonth(endMonthDate)
+    const startDate = startOfMonth(subMonths(endMonthDate, rangeMonths - 1))
+    return {
+      start: format(startDate, 'yyyy-MM-dd'),
+      end: format(endDate, 'yyyy-MM-dd'),
+    }
+  }, [year, month, rangeMonths])
+
+  const periodLabel = useMemo(() => {
+    if (rangeMonths === 1) return format(new Date(year, month - 1, 1), 'MMMM yyyy')
+    const s = format(parseISO(start), 'MMM yyyy')
+    const e = format(parseISO(end), 'MMM yyyy')
+    return `${s} – ${e}`
+  }, [rangeMonths, year, month, start, end])
+
   const catSpending = useCategorySpending(start, end)
 
   const expenses = useMemo(() => {
@@ -47,21 +71,18 @@ export function Insights() {
   const spendPct = incomeForPeriod > 0 ? (totalSpend / incomeForPeriod) * 100 : 0
 
   const incomeExpenseData = useMemo(() => {
-    if (incomeForPeriod === 0 && totalSpend === 0) {
-      return [{ name: 'No data', value: 1, color: '#e5e7eb' }]
-    }
-    if (incomeForPeriod === 0) {
-      return [{ name: 'Expenses', value: totalSpend, color: '#ef4444' }]
-    }
-    const result = []
+    if (incomeForPeriod === 0 && totalSpend === 0) return [{ name: 'No data', value: 1, color: '#e5e7eb' }]
+    if (incomeForPeriod === 0) return [{ name: 'Expenses', value: totalSpend, color: '#ef4444' }]
     const expenseSlice = Math.min(totalSpend, incomeForPeriod)
     const remainingSlice = Math.max(0, incomeForPeriod - totalSpend)
+    const result = []
     if (expenseSlice > 0) result.push({ name: 'Expenses', value: expenseSlice, color: overspent ? '#ef4444' : 'var(--color-primary-500)' })
     if (remainingSlice > 0) result.push({ name: 'Remaining', value: remainingSlice, color: '#10b981' })
     return result
   }, [incomeForPeriod, totalSpend, overspent])
 
   const fmt = (cents: number) => privacyMode ? '••••' : `$${(cents / 100).toFixed(2)}`
+
   const days = useMemo(() => {
     const s = parseISO(start)
     const e = parseISO(end)
@@ -69,20 +90,34 @@ export function Insights() {
   }, [start, end])
   const avgDaily = days > 0 ? totalSpend / days : 0
 
-  // Daily trend data
-  const dailyData = useMemo(() => {
+  // Trend: daily for 1M, monthly for 3M/6M/12M
+  const trendData = useMemo(() => {
+    if (rangeMonths === 1) {
+      const map = new Map<string, number>()
+      for (const t of expenses) {
+        const date = t.transaction_date.split('T')[0]
+        map.set(date, (map.get(date) ?? 0) + t.amount)
+      }
+      return Array.from(map.entries())
+        .sort(([a], [b]) => (a > b ? 1 : -1))
+        .map(([date, amount]) => ({
+          label: format(parseISO(date), 'd MMM'),
+          amount: amount / 100,
+        }))
+    }
+    // Monthly aggregation
     const map = new Map<string, number>()
     for (const t of expenses) {
-      const date = t.transaction_date.split('T')[0]
-      map.set(date, (map.get(date) ?? 0) + t.amount)
+      const key = t.transaction_date.slice(0, 7) // 'yyyy-MM'
+      map.set(key, (map.get(key) ?? 0) + t.amount)
     }
     return Array.from(map.entries())
-      .sort(([a], [b]) => (a > b ? 1 : -1))
-      .map(([date, amount]) => ({
-        date: format(parseISO(date), 'd MMM'),
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, amount]) => ({
+        label: format(parseISO(key + '-01'), 'MMM yy'),
         amount: amount / 100,
       }))
-  }, [expenses])
+  }, [expenses, rangeMonths])
 
   const pieData = catSpending.slice(0, 8).map((cs) => ({
     name: cs.category.name,
@@ -110,16 +145,37 @@ export function Insights() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <PageHeader title="Insights" />
+      <PageHeader title="Insights" subtitle={periodLabel} />
 
-      <PeriodSelector
-        transactions={transactions}
-        year={year}
-        month={month}
-        onChange={(y, m) => { setYear(y); setMonth(m) }}
-      />
+      {/* Range + Period selector */}
+      <div className="px-5 mb-2 flex items-center gap-3">
+        <div className="flex gap-1 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-1">
+          {RANGES.map(({ value, label }) => (
+            <button
+              key={value}
+              onClick={() => setRangeMonths(value)}
+              className={`rounded-lg px-3 py-1 text-xs font-semibold transition-all ${
+                rangeMonths === value
+                  ? 'bg-primary-600 text-white shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
 
-      <div className="px-5 flex flex-col gap-4 md:grid md:grid-cols-2">
+      {rangeMonths === 1 && (
+        <PeriodSelector
+          transactions={transactions}
+          year={year}
+          month={month}
+          onChange={(y, m) => { setYear(y); setMonth(m) }}
+        />
+      )}
+
+      <div className="px-5 flex flex-col gap-4 pb-8 md:grid md:grid-cols-2">
         {/* Summary Stats */}
         <div className="grid grid-cols-2 gap-3 md:col-span-2">
           {[
@@ -211,24 +267,12 @@ export function Insights() {
         {/* Spending by Category — Donut */}
         {pieData.length > 0 && (
           <Card className="p-4">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
-              Spending by Category
-            </h3>
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Spending by Category</h3>
             <div className="flex flex-col items-center gap-4">
               <ResponsiveContainer width={160} height={160}>
                 <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={72}
-                    dataKey="value"
-                    paddingAngle={2}
-                  >
-                    {pieData.map((entry, i) => (
-                      <Cell key={i} fill={entry.color} />
-                    ))}
+                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={72} dataKey="value" paddingAngle={2}>
+                    {pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                   </Pie>
                 </PieChart>
               </ResponsiveContainer>
@@ -250,17 +294,17 @@ export function Insights() {
           </Card>
         )}
 
-        {/* Daily Trend */}
-        {dailyData.length > 1 && (
+        {/* Spending Trend */}
+        {trendData.length > 1 && (
           <Card className="p-4 md:col-span-2">
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
-              Daily Spending
+              {rangeMonths === 1 ? 'Daily Spending' : 'Monthly Spending'}
             </h3>
             <ResponsiveContainer width="100%" height={160}>
-              <BarChart data={dailyData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+              <BarChart data={trendData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v}`} />
+                <XAxis dataKey="label" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}`} />
                 <Tooltip
                   formatter={(value) => [privacyMode ? '••••' : `$${Number(value).toFixed(2)}`, 'Amount']}
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
@@ -274,27 +318,16 @@ export function Insights() {
         {/* Spending by Payment Method */}
         {pmSpending.length > 0 && (
           <Card className="p-4">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
-              Spending by Payment Method
-            </h3>
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Spending by Payment Method</h3>
             <div className="flex flex-col items-center gap-4">
               <ResponsiveContainer width={160} height={160}>
                 <PieChart>
                   <Pie
-                    data={pmSpending}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={72}
-                    dataKey="amount"
-                    startAngle={90}
-                    endAngle={-270}
-                    paddingAngle={pmSpending.length > 1 ? 2 : 0}
-                    strokeWidth={0}
+                    data={pmSpending} cx="50%" cy="50%" innerRadius={50} outerRadius={72}
+                    dataKey="amount" startAngle={90} endAngle={-270}
+                    paddingAngle={pmSpending.length > 1 ? 2 : 0} strokeWidth={0}
                   >
-                    {pmSpending.map((_, i) => (
-                      <Cell key={i} fill={PM_COLORS[i % PM_COLORS.length]} />
-                    ))}
+                    {pmSpending.map((_, i) => <Cell key={i} fill={PM_COLORS[i % PM_COLORS.length]} />)}
                   </Pie>
                   <Tooltip
                     formatter={(value) => [privacyMode ? '••••' : `$${Number(value).toFixed(2)}`, 'Spent']}
@@ -327,9 +360,7 @@ export function Insights() {
                   <CategoryIcon icon={cs.category.icon} color={cs.category.color} size="sm" />
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between mb-1">
-                      <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
-                        {cs.category.name}
-                      </span>
+                      <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{cs.category.name}</span>
                       <AmountDisplay cents={cs.amount} size="md" />
                     </div>
                     <div className="flex items-center gap-2">
